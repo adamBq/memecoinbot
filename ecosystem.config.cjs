@@ -24,7 +24,8 @@ module.exports = {
       interpreter: "none",
       autorestart: true,
       restart_delay: 3000,
-      env: { NODE_ENV: "production", LOG_PRETTY: "0", UI_PORT: "4777", UI_HOST: "127.0.0.1", TZ: "Australia/Sydney" },
+      // UI_HOST/UI_PORT come from .env (dotenv) so a server can bind to its Tailscale address; default loopback.
+      env: { NODE_ENV: "production", LOG_PRETTY: "0", TZ: "Australia/Sydney" },
       out_file: "logs/ui.out.log",
       error_file: "logs/ui.err.log",
       merge_logs: true,

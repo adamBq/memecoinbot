@@ -52,6 +52,10 @@ if [ -f /root/.ssh/authorized_keys ]; then
   chmod 600 "/home/$BOT_USER/.ssh/authorized_keys"
 fi
 install -d -o "$BOT_USER" -g "$BOT_USER" "/home/$BOT_USER/memecoinbot"
+# Limited sudo: only the Tailscale CLI, which is needed for "tailscale up" and "tailscale serve".
+printf '%s ALL=(ALL) NOPASSWD: /usr/bin/tailscale\n' "$BOT_USER" > /etc/sudoers.d/90-bot-tailscale
+chmod 440 /etc/sudoers.d/90-bot-tailscale
+visudo -cf /etc/sudoers.d/90-bot-tailscale >/dev/null
 
 log "SSH hardening: keys only, no root login"
 sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -86,7 +90,7 @@ env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$BOT_USER" --hp "/home/$BOT_US
 log "Done. Next steps:"
 cat <<MSG
   1. Join this box to your Tailscale network (prints a login link to open once):
-       tailscale up --ssh=false
+       sudo tailscale up --ssh=false      (as the bot user; root SSH is now disabled)
   2. From your Mac, deploy the code and start the bot:
        bash deploy/deploy.sh bot@<droplet-public-ip> --with-ledger
   3. Publish the dashboard inside your tailnet only (HTTPS, no public port):

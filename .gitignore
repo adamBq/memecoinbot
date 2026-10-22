@@ -8,3 +8,4 @@ coverage/
 ui/dist/
 e2e/test-results/
 e2e/artifacts/
+data/archive/

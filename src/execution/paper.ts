@@ -34,6 +34,15 @@ export interface PaperBrokerDeps {
 
 /** Impact assumed when Jupiter has no route or the quote fails. Percent. */
 export const FALLBACK_PRICE_IMPACT_PCT = 2;
+/** A sell with no Jupiter route is treated as a near-rug: half the reference price is lost. */
+export const NO_ROUTE_SELL_HAIRCUT_PCT = 50;
+
+export class NoRouteError extends Error {
+  constructor(mint: string, side: "buy" | "sell") {
+    super(`no Jupiter route for ${side} of ${mint}`);
+    this.name = "NoRouteError";
+  }
+}
 
 const SOL_DECIMALS = 9;
 
@@ -170,29 +179,26 @@ export class PaperBroker {
       logger.warn({ mint: pair.mint, err }, "paper buy: quote failed, using fallback impact");
     }
 
-    let impactPct = FALLBACK_PRICE_IMPACT_PCT;
-    let pricingRef = pair.priceUsd;
-    if (view) {
-      impactPct = view.impactPct;
-      // For a buy, a higher price is worse.
-      if (view.impliedPriceUsd !== null && view.impliedPriceUsd > pricingRef) pricingRef = view.impliedPriceUsd;
-    } else {
-      logger.warn(
-        { mint: pair.mint, symbol: pair.symbol, notionalUsd, fallbackImpactPct: FALLBACK_PRICE_IMPACT_PCT },
-        "paper buy: no Jupiter route, using fallback impact",
-      );
+    // Buys fail closed: with no route we cannot know the real cost, so we do not pretend to buy.
+    if (!view) {
+      logger.warn({ mint: pair.mint, symbol: pair.symbol, notionalUsd }, "paper buy: no Jupiter route, rejecting entry");
+      throw new NoRouteError(pair.mint, "buy");
     }
-
+    // The quote-implied price already embeds Jupiter's price impact, so when we use it we apply impact 0
+    // (the extra slippage and fee still apply) and only record the quoted impact on the fill.
+    // Compare like with like: the pair price after quoted impact versus the quote-implied price, take the worse.
+    const impacted = pair.priceUsd * (1 + view.impactPct / 100);
+    const worst = view.impliedPriceUsd !== null ? Math.max(impacted, view.impliedPriceUsd) : impacted;
     const fill = simulateFill({
       side: "buy",
       mint: pair.mint,
-      referencePriceUsd: pricingRef,
+      referencePriceUsd: worst,
       notionalUsd,
-      priceImpactPct: impactPct,
+      priceImpactPct: 0,
       exec: this.exec,
       ts,
     });
-    return { ...fill, referencePriceUsd: pair.priceUsd };
+    return { ...fill, referencePriceUsd: pair.priceUsd, priceImpactPct: view.impactPct };
   }
 
   /**
@@ -225,31 +231,35 @@ export class PaperBroker {
       logger.warn({ mint: pair.mint, err }, "paper sell: quote failed, using fallback impact");
     }
 
-    let impactPct = FALLBACK_PRICE_IMPACT_PCT;
-    let pricingRef = pair.priceUsd;
-    if (view) {
-      impactPct = view.impactPct;
-      // For a sell, a lower price is worse.
-      if (view.impliedPriceUsd !== null && view.impliedPriceUsd > 0 && view.impliedPriceUsd < pricingRef) {
-        pricingRef = view.impliedPriceUsd;
-      }
-    } else {
+    if (!view) {
+      // Sells never fail (you can always dump), but with no route we assume a near-rug and take a heavy haircut.
       logger.warn(
-        { mint: pair.mint, symbol: pair.symbol, qtyTokens, fallbackImpactPct: FALLBACK_PRICE_IMPACT_PCT },
-        "paper sell: no Jupiter route, using fallback impact",
+        { mint: pair.mint, symbol: pair.symbol, qtyTokens, haircutPct: NO_ROUTE_SELL_HAIRCUT_PCT },
+        "paper sell: no Jupiter route, applying rug haircut",
       );
+      const fill = simulateFill({
+        side: "sell",
+        mint: pair.mint,
+        referencePriceUsd: pair.priceUsd,
+        qtyTokens,
+        priceImpactPct: NO_ROUTE_SELL_HAIRCUT_PCT,
+        exec: this.exec,
+        ts,
+      });
+      return { ...fill, referencePriceUsd: pair.priceUsd };
     }
-
+    const impacted = pair.priceUsd * (1 - view.impactPct / 100);
+    const worst = view.impliedPriceUsd !== null && view.impliedPriceUsd > 0 ? Math.min(impacted, view.impliedPriceUsd) : impacted;
     const fill = simulateFill({
       side: "sell",
       mint: pair.mint,
-      referencePriceUsd: pricingRef,
+      referencePriceUsd: Math.max(worst, 0),
       qtyTokens,
-      priceImpactPct: impactPct,
+      priceImpactPct: 0,
       exec: this.exec,
       ts,
     });
-    return { ...fill, referencePriceUsd: pair.priceUsd };
+    return { ...fill, referencePriceUsd: pair.priceUsd, priceImpactPct: view.impactPct };
   }
 }
 

@@ -13,7 +13,7 @@ if (open.length > 0) {
     if (prim) prices[p.mint] = prim.priceUsd;
   }
 }
-const pf = loadPortfolio(ledger, prices, Date.now());
+const pf = loadPortfolio(ledger, prices, Date.now(), { readOnly: true });
 console.log(`equity ${pf.equityUsd.toFixed(2)}  cash ${pf.cashUsd.toFixed(2)}  peak ${pf.peakEquityUsd.toFixed(2)}  dayStart ${pf.dayStartEquityUsd.toFixed(2)}  killed ${pf.killed}`);
 console.log(`last tick ${ledger.getMeta("last_tick_at") ? new Date(Number(ledger.getMeta("last_tick_at"))).toISOString() : "never"}  last screen ${ledger.getMeta("last_screen_at") ? new Date(Number(ledger.getMeta("last_screen_at"))).toISOString() : "never"}`);
 console.table(

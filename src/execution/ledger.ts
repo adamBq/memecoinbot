@@ -203,6 +203,7 @@ const ORDER_COLUMNS =
   "fee_usd, price_impact_pct, reason, ts";
 
 export class Ledger {
+  private inTx = false;
   private readonly db: DatabaseSync;
   private readonly stmts: {
     getMeta: StatementSync;
@@ -231,7 +232,7 @@ export class Ledger {
     if (dbPath !== ":memory:" && dbPath !== "") {
       mkdirSync(dirname(dbPath), { recursive: true });
     }
-    this.db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: true });
+    this.db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: true, timeout: 5000 });
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec("PRAGMA foreign_keys = ON");
     this.db.exec("PRAGMA synchronous = NORMAL");
@@ -331,6 +332,23 @@ export class Ledger {
     if (this.db.isOpen) this.db.close();
   }
 
+  /** Run several writes atomically. Nested calls just run inline. */
+  transaction<T>(fn: () => T): T {
+    if (this.inTx) return fn();
+    this.inTx = true;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const out = fn();
+      this.db.exec("COMMIT");
+      return out;
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    } finally {
+      this.inTx = false;
+    }
+  }
+
   // ---- meta ---------------------------------------------------------------
 
   getMeta(key: string): string | null {
@@ -378,6 +396,11 @@ export class Ledger {
       entryScore: input.entryScore,
       closeReason: null,
     };
+  }
+
+  /** Ratchets the stored peak price up without touching status or quantities. */
+  updatePeakPrice(id: number, peakPriceUsd: number): void {
+    this.db.prepare("UPDATE positions SET peak_price_usd = MAX(peak_price_usd, ?) WHERE id = ? AND status = 'open'").run(peakPriceUsd, id);
   }
 
   /** Writes every field of the position (except id) back to the row. */

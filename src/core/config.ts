@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { parse } from "yaml";
 import { z } from "zod";
 import "dotenv/config";
@@ -7,7 +8,7 @@ const StrategySchema = z.object({
   account: z.object({
     startingEquityUsd: z.number().positive(),
     maxOpenPositions: z.number().int().positive(),
-    positionSizePctOfEquity: z.number().positive().max(100),
+    positionSizePctOfEquity: z.number().positive().max(25),
     minPositionNotionalUsd: z.number().positive(),
   }),
   hardFilters: z.object({
@@ -42,7 +43,7 @@ const StrategySchema = z.object({
     requireBreakoutConfirmation: z.boolean(),
   }),
   exits: z.object({
-    hardStopLossPct: z.number(),
+    hardStopLossPct: z.number().min(5).max(60),
     takeProfit1Multiple: z.number(),
     tp1SellFraction: z.number().min(0).max(1),
     trailingStopPctFromPeak: z.number(),
@@ -53,12 +54,13 @@ const StrategySchema = z.object({
     exitOnSafetyDeterioration: z.boolean(),
   }),
   circuitBreakers: z.object({
-    dailyLossLimitPct: z.number(),
-    maxDrawdownFromPeakPct: z.number(),
-    maxConsecutiveLosses: z.number().int(),
-    cooldownHours: z.number(),
-    dataStaleSeconds: z.number(),
-    reentryCooldownHours: z.number(),
+    // Bounded so a config edit cannot silently disable a breaker.
+    dailyLossLimitPct: z.number().min(1).max(50),
+    maxDrawdownFromPeakPct: z.number().min(5).max(60),
+    maxConsecutiveLosses: z.number().int().min(1).max(50),
+    cooldownHours: z.number().min(0.5).max(168),
+    dataStaleSeconds: z.number().min(30).max(3600),
+    reentryCooldownHours: z.number().min(0).max(720),
   }),
   execution: z.object({
     paperFeePct: z.number(),
@@ -98,6 +100,11 @@ export function loadEnv(): AppEnv {
     strategyConfigPath: process.env.STRATEGY_CONFIG ?? "config/strategy.yaml",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || undefined,
   };
+}
+
+/** SHA-256 of the raw config file, stored in the ledger so mid-week edits are visible in the audit trail. */
+export function strategyConfigHash(path = process.env.STRATEGY_CONFIG ?? "config/strategy.yaml"): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex").slice(0, 16);
 }
 
 export function loadStrategyConfig(path = process.env.STRATEGY_CONFIG ?? "config/strategy.yaml"): StrategyConfig {

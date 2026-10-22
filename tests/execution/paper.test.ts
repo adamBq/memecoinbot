@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { PaperBroker, simulateFill, toRawAmount, FALLBACK_PRICE_IMPACT_PCT } from "../../src/execution/paper.js";
+import { PaperBroker, simulateFill, toRawAmount, NoRouteError, NO_ROUTE_SELL_HAIRCUT_PCT } from "../../src/execution/paper.js";
 import { WSOL_MINT, type StrategyConfig } from "../../src/core/config.js";
 import type { JupiterQuote, PairSnapshot } from "../../src/core/types.js";
 
@@ -222,8 +222,8 @@ describe("PaperBroker", () => {
     expect(getQuote.mock.calls[0]?.[2]).toBe(400_000_000n);
     expect(fill.priceImpactPct).toBeCloseTo(0.12, 12);
     expect(fill.referencePriceUsd).toBe(priceUsd);
-    // effective = 0.01 * (1 + (0.12 + 1.0)/100)
-    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * 1.0112, 12);
+    // effective = 0.01 * (1 + 0.12/100) * (1 + 1.0/100): quoted impact first, then the extra slippage
+    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * 1.0012 * 1.01, 12);
     expect(fill.notionalUsd).toBe(notional);
     expect(fill.feeUsd).toBeCloseTo(80 * 0.003 + 0.05, 12);
     expect(fill.qtyTokens).toBeCloseTo((80 - fill.feeUsd) / fill.effectivePriceUsd, 8);
@@ -241,29 +241,26 @@ describe("PaperBroker", () => {
     const fill = await broker.buy(pair(priceUsd), decimals, notional, TS);
     const implied = 80 / 7000;
     expect(fill.referencePriceUsd).toBe(priceUsd);
-    expect(fill.effectivePriceUsd).toBeCloseTo(implied * (1 + (0.1 + 1.0) / 100), 12);
+    // The implied price already embeds Jupiter's impact, so only the extra slippage is applied on top.
+    expect(fill.effectivePriceUsd).toBeCloseTo(implied * (1 + 1.0 / 100), 12);
+    expect(fill.priceImpactPct).toBeCloseTo(0.1, 12);
   });
 
-  it("buy: falls back to 2% impact when there is no route", async () => {
+  it("buy: fails closed with NoRouteError when there is no route", async () => {
     const getQuote = vi.fn(async () => null);
     const broker = new PaperBroker(cfg, { getQuote, getSolPriceUsd: async () => solPrice });
-    const fill = await broker.buy(pair(0.01), 6, 80, TS);
+    await expect(broker.buy(pair(0.01), 6, 80, TS)).rejects.toBeInstanceOf(NoRouteError);
     expect(getQuote).toHaveBeenCalledTimes(1);
-    expect(fill.priceImpactPct).toBe(FALLBACK_PRICE_IMPACT_PCT);
-    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * (1 + (2 + 1.0) / 100), 12);
-    expect(fill.referencePriceUsd).toBe(0.01);
-    expect(fill.notionalUsd).toBe(80);
   });
 
-  it("buy: falls back when the quote or SOL price throws", async () => {
+  it("buy: fails closed when the quote or SOL price throws", async () => {
     const broker = new PaperBroker(cfg, {
       getQuote: async () => {
         throw new Error("network down");
       },
       getSolPriceUsd: async () => solPrice,
     });
-    const fill = await broker.buy(pair(0.01), 6, 80, TS);
-    expect(fill.priceImpactPct).toBe(FALLBACK_PRICE_IMPACT_PCT);
+    await expect(broker.buy(pair(0.01), 6, 80, TS)).rejects.toBeInstanceOf(NoRouteError);
 
     const broker2 = new PaperBroker(cfg, {
       getQuote: vi.fn(async () => null),
@@ -271,8 +268,7 @@ describe("PaperBroker", () => {
         throw new Error("price down");
       },
     });
-    const fill2 = await broker2.buy(pair(0.01), 6, 80, TS);
-    expect(fill2.priceImpactPct).toBe(FALLBACK_PRICE_IMPACT_PCT);
+    await expect(broker2.buy(pair(0.01), 6, 80, TS)).rejects.toBeInstanceOf(NoRouteError);
   });
 
   it("sell: quotes mint -> WSOL with the raw token amount for 9 decimals", async () => {
@@ -292,8 +288,9 @@ describe("PaperBroker", () => {
     expect(getQuote.mock.calls[0]?.[2]).toBe(1_234_567_800_000n);
     expect(fill.priceImpactPct).toBeCloseTo(0.25, 12);
     expect(fill.referencePriceUsd).toBe(priceUsd);
-    // Implied price equals pair price (within lamport rounding), so effective = 0.01 * (1 - 1.25/100).
-    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * (1 - 0.0125), 9);
+    // Implied price equals pair price (within lamport rounding), so the impacted pair price wins:
+    // effective = 0.01 * (1 - 0.25/100) * (1 - 1.0/100).
+    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * (1 - 0.0025) * (1 - 0.01), 9);
     expect(fill.qtyTokens).toBe(qty);
     const gross = fill.qtyTokens * fill.effectivePriceUsd;
     expect(fill.feeUsd).toBeCloseTo(gross * 0.003 + 0.05, 12);
@@ -312,14 +309,15 @@ describe("PaperBroker", () => {
     const fill = await broker.sell(pair(priceUsd), decimals, qty, TS);
     expect(getQuote.mock.calls[0]?.[2]).toBe(800_000_000n);
     expect(fill.referencePriceUsd).toBe(priceUsd);
-    expect(fill.effectivePriceUsd).toBeCloseTo(0.009 * (1 - (0.2 + 1.0) / 100), 12);
+    expect(fill.effectivePriceUsd).toBeCloseTo(0.009 * (1 - 1.0 / 100), 12);
+    expect(fill.priceImpactPct).toBeCloseTo(0.2, 12);
   });
 
-  it("sell: falls back to 2% impact when there is no route", async () => {
+  it("sell: applies the rug haircut when there is no route", async () => {
     const broker = new PaperBroker(cfg, { getQuote: async () => null, getSolPriceUsd: async () => solPrice });
     const fill = await broker.sell(pair(0.01), 6, 1000, TS);
-    expect(fill.priceImpactPct).toBe(FALLBACK_PRICE_IMPACT_PCT);
-    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * (1 - 0.03), 12);
+    expect(fill.priceImpactPct).toBe(NO_ROUTE_SELL_HAIRCUT_PCT);
+    expect(fill.effectivePriceUsd).toBeCloseTo(0.01 * (1 - (NO_ROUTE_SELL_HAIRCUT_PCT + 1.0) / 100), 12);
     expect(fill.referencePriceUsd).toBe(0.01);
   });
 

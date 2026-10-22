@@ -130,8 +130,8 @@ export async function getJson<T>(url: string, opts: GetJsonOptions = {}): Promis
         // 429s need real breathing room; 5xx can retry quickly.
         const base = res.status === 429 ? 3000 * 2 ** attempt : 500 * 2 ** attempt;
         const backoff = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 65_000) : base;
-        logger.warn({ url, status: res.status, attempt, backoff }, "http retryable error");
-        await sleep(backoff);
+        logger.warn({ url: url.split("?")[0], status: res.status, attempt, backoff }, "http retryable error");
+        if (attempt < retries) await sleep(backoff);
         continue;
       }
       if (!res.ok) {
@@ -144,8 +144,8 @@ export async function getJson<T>(url: string, opts: GetJsonOptions = {}): Promis
     } catch (err) {
       if (err instanceof HttpError && err.status < 500 && err.status !== 429) throw err;
       lastErr = err;
-      logger.warn({ url, attempt, err: String(err) }, "http request failed");
-      await sleep(300 * 2 ** attempt);
+      logger.warn({ url: url.split("?")[0], attempt, err: String(err) }, "http request failed");
+      if (attempt < retries) await sleep(300 * 2 ** attempt);
     } finally {
       clearTimeout(timer);
     }

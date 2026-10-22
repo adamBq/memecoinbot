@@ -54,7 +54,8 @@ export function markToMarket(positions: Position[], prices: Record<string, numbe
 }
 
 /** Build the state. `prices` maps mint -> latest USD price for open positions. */
-export function loadPortfolio(ledger: Ledger, prices: Record<string, number>, now: number): PortfolioState {
+export function loadPortfolio(ledger: Ledger, prices: Record<string, number>, now: number, opts: { readOnly?: boolean } = {}): PortfolioState {
+  const write = !opts.readOnly;
   const openPositions = ledger.getOpenPositions();
   const cashUsd = num(ledger, META.cash, 0);
   const equityUsd = cashUsd + markToMarket(openPositions, prices);
@@ -63,7 +64,7 @@ export function loadPortfolio(ledger: Ledger, prices: Record<string, number>, no
   const today = utcDayKey(now);
   let dayKey = ledger.getMeta(META.dayKey) ?? today;
   let dayStartEquityUsd = num(ledger, META.dayStartEquity, equityUsd);
-  if (dayKey !== today) {
+  if (dayKey !== today && write) {
     dayKey = today;
     dayStartEquityUsd = equityUsd;
     ledger.setMeta(META.dayKey, dayKey);
@@ -71,7 +72,7 @@ export function loadPortfolio(ledger: Ledger, prices: Record<string, number>, no
   }
 
   let peakEquityUsd = num(ledger, META.peakEquity, equityUsd);
-  if (equityUsd > peakEquityUsd) {
+  if (equityUsd > peakEquityUsd && write) {
     peakEquityUsd = equityUsd;
     ledger.setMeta(META.peakEquity, String(peakEquityUsd));
   }

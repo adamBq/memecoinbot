@@ -15,7 +15,7 @@ if (open.length > 0) {
     if (prim) prices[p.mint] = prim.priceUsd;
   }
 }
-const pf = loadPortfolio(ledger, prices, now);
+const pf = loadPortfolio(ledger, prices, now, { readOnly: true });
 const report = buildReport(ledger, cfg.account.startingEquityUsd, pf.equityUsd, pf.cashUsd, now);
 const text = formatReport(report);
 console.log(text);

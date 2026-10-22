@@ -1,5 +1,5 @@
 /** Wires real data clients, ledger, broker, and LLM into a Runner. */
-import { loadEnv, loadStrategyConfig } from "../core/config.js";
+import { loadEnv, loadStrategyConfig, strategyConfigHash } from "../core/config.js";
 import { logger } from "../core/logger.js";
 import { Ledger } from "../execution/ledger.js";
 import { PaperBroker } from "../execution/paper.js";
@@ -34,6 +34,17 @@ export function bootstrap(opts: RunnerOptions = {}): { runner: Runner; ledger: L
   }
   const cfg = loadStrategyConfig(env.strategyConfigPath);
   const ledger = new Ledger(env.dbPath);
+  // Pin the strategy config in the audit trail; a mid-week edit shows up as a note, never silently.
+  const hash = strategyConfigHash(env.strategyConfigPath);
+  const prev = ledger.getMeta("config_hash");
+  if (prev === null) {
+    ledger.setMeta("config_hash", hash);
+    ledger.addNote(Date.now(), `strategy config pinned: ${hash}`);
+  } else if (prev !== hash) {
+    ledger.setMeta("config_hash", hash);
+    ledger.addNote(Date.now(), `STRATEGY CONFIG CHANGED: ${prev} -> ${hash}`);
+    logger.warn({ prev, hash }, "strategy config changed since the ledger was created");
+  }
   const broker = new PaperBroker(cfg, { getQuote, getSolPriceUsd });
   const llm = new LlmScorer({
     apiKey: cfg.llm.enabled ? env.anthropicApiKey : undefined,

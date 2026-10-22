@@ -11,6 +11,7 @@
 
 import type { StrategyConfig } from "../core/config.js";
 import type {
+  ExitKind,
   BreakerState,
   CompositeScore,
   EntryDecision,
@@ -239,8 +240,8 @@ export function updatePeak(pos: Position, priceUsd: number): Position {
   return { ...pos, peakPriceUsd: Math.max(pos.peakPriceUsd, priceUsd) };
 }
 
-function sell(fraction: number, reason: string): ExitDecision {
-  return { action: "sell", fraction, reason };
+function sell(fraction: number, reason: string, kind: ExitKind): ExitDecision {
+  return { action: "sell", fraction, reason, kind };
 }
 
 export function evaluateExits(
@@ -263,7 +264,7 @@ export function evaluateExits(
     if (!safetyNow.mintAuthorityRevoked) flags.push("mint authority not revoked");
     if (!safetyNow.freezeAuthorityRevoked) flags.push("freeze authority not revoked");
     if (flags.length > 0) {
-      return sell(1, `safety deterioration: ${flags.join(", ")} (${state})`);
+      return sell(1, `safety deterioration: ${flags.join(", ")} (${state})`, "safety");
     }
   }
 
@@ -276,6 +277,7 @@ export function evaluateExits(
         1,
         `liquidity drop: ${fmtUsd(liquidityUsd)} is ${fmtPct(drop)} below entry ${fmtUsd(pos.entryLiquidityUsd)} ` +
           `(limit ${fmtPct(ex.exitOnLiquidityDropPct)}, floor ${fmtUsd(floor)}; ${state})`,
+        "liquidity",
       );
     }
   }
@@ -283,7 +285,7 @@ export function evaluateExits(
   // 3. Hard stop
   const hardStopPrice = entry * (1 - ex.hardStopLossPct / 100);
   if (priceUsd <= hardStopPrice) {
-    return sell(1, `hard stop: ${state} <= stop ${fmtPrice(hardStopPrice)} (${fmtPct(ex.hardStopLossPct)} below entry)`);
+    return sell(1, `hard stop: ${state} <= stop ${fmtPrice(hardStopPrice)} (${fmtPct(ex.hardStopLossPct)} below entry)`, "hard_stop");
   }
 
   // 4. Trailing stop (only once the position has been in profit; the hard stop covers the rest)
@@ -296,6 +298,7 @@ export function evaluateExits(
         1,
         `trailing stop${pos.tp1Hit ? " (post-tp1)" : " (pre-tp1)"}: ${fmtPct(offPeak)} off peak ${fmtPrice(pos.peakPriceUsd)} ` +
           `>= ${fmtPct(trailPct)} trail (trigger ${fmtPrice(trailPrice)}; ${state})`,
+        "trailing",
       );
     }
   }
@@ -307,6 +310,7 @@ export function evaluateExits(
       ex.tp1SellFraction,
       `take profit 1: ${state} >= ${ex.takeProfit1Multiple}x entry (${fmtPrice(tp1Price)}), ` +
         `selling ${fmtPct(ex.tp1SellFraction * 100, 0)} of remaining`,
+      "take_profit",
     );
   }
 
@@ -318,6 +322,7 @@ export function evaluateExits(
       1,
       `time stop: held ${fmtHours(heldMs)} >= ${ex.timeStopHours}h with pnl ${fmtPct(gain)} ` +
         `< ${fmtPct(ex.timeStopMinGainPctToHold)} required to hold`,
+      "time_stop",
     );
   }
 

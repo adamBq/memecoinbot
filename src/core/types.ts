@@ -233,8 +233,12 @@ export interface PortfolioState {
   lastExitByMint: Record<Mint, number>;
 }
 
+export type ExitKind = "safety" | "liquidity" | "hard_stop" | "trailing" | "take_profit" | "time_stop" | "forced";
+
 export interface ExitDecision {
   action: "hold" | "sell";
+  /** Structured cause, so callers never parse the reason text. Absent on hold. */
+  kind?: ExitKind;
   /** Fraction of the remaining quantity to sell, 0-1. */
   fraction: number;
   reason: string;

@@ -147,7 +147,7 @@ export async function getPricesUsd(mints: string[]): Promise<Record<string, Jupi
       if (usdPrice === null || usdPrice <= 0) continue;
       out[mint] = {
         usdPrice,
-        decimals: toNumber(entry.decimals) ?? 0,
+        decimals: toNumber(entry.decimals) ?? 0, // 0 means unknown; callers must treat it as missing
         liquidity: toNumber(entry.liquidity) ?? 0,
       };
     }

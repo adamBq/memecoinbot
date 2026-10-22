@@ -27,13 +27,16 @@ if [ "$WITH_LEDGER" -eq 1 ] && npx pm2 jlist 2>/dev/null | grep -q '"name":"meme
 fi
 
 echo "==> rsync code to $TARGET:$REMOTE_DIR"
+# Excludes are anchored to the project root (leading slash) so "src/data" is never mistaken for "data".
 rsync -az --delete $DRY \
-  --exclude node_modules --exclude dist --exclude ui/dist --exclude .git \
-  --exclude data --exclude logs --exclude reports --exclude e2e/artifacts --exclude e2e/test-results \
-  --exclude .env --exclude '*.db' --exclude '*.db-*' \
+  --exclude /node_modules --exclude /dist --exclude /ui/dist --exclude /.git --exclude /.claude \
+  --exclude /data --exclude /logs --exclude /reports --exclude /e2e/artifacts --exclude /e2e/test-results \
+  --exclude /.env --exclude '*.db' --exclude '*.db-*' \
   ./ "$TARGET:$REMOTE_DIR/"
 
 if [ "$WITH_LEDGER" -eq 1 ]; then
+  echo "==> checkpointing the ledger so the write-ahead log is folded into the .db file"
+  node -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('data/memecoinbot.db');console.log(JSON.stringify(db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get()));db.close()"
   echo "==> copying ledger"
   rsync -az $DRY data/memecoinbot.db "$TARGET:$REMOTE_DIR/data/" --rsync-path="mkdir -p $REMOTE_DIR/data && rsync"
 fi

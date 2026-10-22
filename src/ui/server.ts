@@ -16,7 +16,7 @@ import { stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
-import { loadEnv, loadStrategyConfig, type StrategyConfig } from "../core/config.js";
+import { DEFAULT_DISPLAY_CURRENCY, DEFAULT_DISPLAY_TIMEZONE, loadEnv, loadStrategyConfig, type DisplayCurrency, type StrategyConfig } from "../core/config.js";
 import { logger } from "../core/logger.js";
 import { getPairsByTokens, pickPrimaryPair } from "../data/dexscreener.js";
 import { Ledger } from "../execution/ledger.js";
@@ -36,6 +36,7 @@ import {
   type GetPrices,
   type PriceBook,
 } from "./api.js";
+import { getAudPerUsd, type FxRate, type GetFx } from "./fx.js";
 import type { HealthDto } from "./types.js";
 
 export const DEFAULT_UI_HOST = "127.0.0.1";
@@ -46,6 +47,8 @@ export const PRICE_MAX_AGE_MS = 10 * 60_000;
 /** Longest a request waits for an upstream price fetch before serving cached marks. */
 export const PRICE_FETCH_TIMEOUT_MS = 3_000;
 export const DTO_CACHE_TTL_MS = 1_500;
+/** Longest /api/summary waits for the FX rate before answering with `audPerUsd: null`. */
+export const FX_FETCH_TIMEOUT_MS = 3_000;
 
 export interface ServerOptions {
   ledger: Ledger;
@@ -66,6 +69,12 @@ export interface ServerOptions {
   dtoTtlMs?: number;
   /** Extra Host header values (host or host:port) accepted besides loopback, e.g. a deliberately bound LAN address. */
   allowedHosts?: string[];
+  /** USD->AUD rate source, default `getAudPerUsd` (cached 1h). Injected so tests never hit the network. */
+  getFx?: GetFx;
+  /** Cap on the wait for the FX rate, default 3s. */
+  fxTimeoutMs?: number;
+  /** Display preferences surfaced on /api/summary. Defaults: AUD, Australia/Sydney. */
+  display?: { currency: DisplayCurrency; timezone: string };
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -308,6 +317,9 @@ export function createServer(opts: ServerOptions): Server {
     now,
   });
   const dtoTtlMs = opts.dtoTtlMs ?? DTO_CACHE_TTL_MS;
+  const getFx = opts.getFx ?? (() => getAudPerUsd());
+  const fxTimeoutMs = opts.fxTimeoutMs ?? FX_FETCH_TIMEOUT_MS;
+  const display = opts.display ?? { currency: DEFAULT_DISPLAY_CURRENCY, timezone: DEFAULT_DISPLAY_TIMEZONE };
   const allowedHosts = opts.allowedHosts ?? [];
   const staticRoot = resolve(staticDir);
   const indexHtml = resolve(staticRoot, "index.html");
@@ -317,6 +329,23 @@ export function createServer(opts: ServerOptions): Server {
     return mints.length > 0 ? prices(mints) : {};
   }
 
+  /** The FX rate, or null when the source fails or is slower than `fxTimeoutMs` (the fetch keeps running to warm its cache). */
+  async function fxRate(): Promise<FxRate | null> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((r) => {
+      timer = setTimeout(() => r(null), fxTimeoutMs);
+      timer.unref();
+    });
+    try {
+      return await Promise.race([getFx().catch((err: unknown) => {
+        logger.warn({ err: String(err) }, "ui: fx fetch failed");
+        return null;
+      }), timeout]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
   async function buildApi(pathname: string, params: URLSearchParams): Promise<ApiResult> {
     const t = now();
     switch (pathname) {
@@ -324,8 +353,10 @@ export function createServer(opts: ServerOptions): Server {
         const body: HealthDto = { ok: true, ts: t };
         return { status: 200, body };
       }
-      case "/api/summary":
-        return { status: 200, body: buildSummary(ledger, cfg, await openPrices(), t) };
+      case "/api/summary": {
+        const [prices, fx] = await Promise.all([openPrices(), fxRate()]);
+        return { status: 200, body: buildSummary(ledger, cfg, prices, t, { ...display, fx }) };
+      }
       case "/api/equity":
         return { status: 200, body: buildEquity(ledger, await openPrices(), t) };
       case "/api/positions":
@@ -472,6 +503,7 @@ export async function main(): Promise<Server> {
     staticDir,
     configPath,
     allowedHosts: loopback ? [] : [host.includes(":") && !host.startsWith("[") ? `[${host}]` : host],
+    display: { currency: env.displayCurrency, timezone: env.displayTimezone },
   });
 
   const shutdown = (signal: string): void => {
@@ -494,7 +526,10 @@ export async function main(): Promise<Server> {
   });
   const addr = server.address();
   const boundPort = addr !== null && typeof addr === "object" ? addr.port : port;
-  logger.info({ host, port: boundPort, db: env.dbPath, staticDir, readOnly: ledger.isReadOnly }, "ui: listening");
+  logger.info(
+    { host, port: boundPort, db: env.dbPath, staticDir, readOnly: ledger.isReadOnly, currency: env.displayCurrency, timezone: env.displayTimezone },
+    "ui: listening",
+  );
   return server;
 }
 

@@ -2,7 +2,8 @@
  * Deterministic sample DTOs so the UI can be developed and screenshotted without
  * the server. Served when the page is opened with `?mock=1`.
  * `?mock=1&scenario=halted` or `&scenario=killed` exercises the breaker banner;
- * `&scenario=error` makes every endpoint fail; `&scenario=stale` marks prices stale and drops one live mark.
+ * `&scenario=error` makes every endpoint fail; `&scenario=stale` marks prices stale and drops one live mark;
+ * `&scenario=usd` returns no FX rate so amounts fall back to USD.
  */
 import type {
   CandidateDto, CandidatesResponse, ClosedPositionDto, DecisionDto, DecisionsResponse, EquityPointDto, EquityResponse,
@@ -355,6 +356,9 @@ function summary(): SummaryDto {
     lastScreenAt: LAST_SCREEN_AT,
     botHealthy: true,
     pricesStale: sc === "stale",
+    display: sc === "usd"
+      ? { currency: "USD", timezone: "Australia/Sydney", audPerUsd: null, fxAsOf: null, fxSource: null }
+      : { currency: "AUD", timezone: "Australia/Sydney", audPerUsd: 1.4232, fxAsOf: NOW - 25 * 60_000, fxSource: "frankfurter.app" },
   };
 }
 

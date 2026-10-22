@@ -6,7 +6,15 @@
  */
 import { readFileSync } from "node:fs";
 import type { Order } from "../core/types.js";
-import { loadStrategyConfig, strategyConfigHash, type StrategyConfig } from "../core/config.js";
+import {
+  DEFAULT_DISPLAY_CURRENCY,
+  DEFAULT_DISPLAY_TIMEZONE,
+  loadStrategyConfig,
+  strategyConfigHash,
+  type DisplayCurrency,
+  type StrategyConfig,
+} from "../core/config.js";
+import type { FxRate } from "./fx.js";
 import type { DecisionRow, Ledger } from "../execution/ledger.js";
 import { loadPortfolio, META } from "../ops/portfolio.js";
 import { buildReport } from "../ops/report.js";
@@ -19,6 +27,7 @@ import type {
   DecisionAction,
   DecisionDto,
   DecisionsDto,
+  DisplayDto,
   EquityDto,
   LensScoresDto,
   NotesDto,
@@ -129,11 +138,30 @@ export function toDecisionDto(row: DecisionRow): DecisionDto {
 
 // ---------------------------------------------------------------------------
 
-export function buildSummary(ledger: Ledger, cfg: StrategyConfig, prices: PriceBook, now: number): SummaryDto {
-  return ledger.readTx(() => buildSummaryInner(ledger, cfg, prices, now));
+/** Display preferences plus the already-fetched FX rate (null when unavailable). */
+export interface DisplayInput {
+  currency: DisplayCurrency;
+  timezone: string;
+  fx: FxRate | null;
 }
 
-function buildSummaryInner(ledger: Ledger, cfg: StrategyConfig, prices: PriceBook, now: number): SummaryDto {
+export const DEFAULT_DISPLAY: DisplayInput = { currency: DEFAULT_DISPLAY_CURRENCY, timezone: DEFAULT_DISPLAY_TIMEZONE, fx: null };
+
+export function toDisplayDto(d: DisplayInput): DisplayDto {
+  return {
+    currency: d.currency,
+    timezone: d.timezone,
+    audPerUsd: d.fx?.audPerUsd ?? null,
+    fxAsOf: d.fx?.asOf ?? null,
+    fxSource: d.fx?.source ?? null,
+  };
+}
+
+export function buildSummary(ledger: Ledger, cfg: StrategyConfig, prices: PriceBook, now: number, display: DisplayInput = DEFAULT_DISPLAY): SummaryDto {
+  return ledger.readTx(() => buildSummaryInner(ledger, cfg, prices, now, display));
+}
+
+function buildSummaryInner(ledger: Ledger, cfg: StrategyConfig, prices: PriceBook, now: number, display: DisplayInput): SummaryDto {
   const pf = loadPortfolio(ledger, toPriceMap(prices), now, { readOnly: true });
   const breakers = evaluateBreakers(pf, cfg, now);
   const starting = cfg.account.startingEquityUsd;
@@ -166,6 +194,7 @@ function buildSummaryInner(ledger: Ledger, cfg: StrategyConfig, prices: PriceBoo
     lastScreenAt: metaNumber(ledger, META.lastScreenAt),
     botHealthy: lastTickAt !== null && now - lastTickAt <= HEALTHY_TICK_AGE_MS,
     pricesStale,
+    display: toDisplayDto(display),
   };
 }
 

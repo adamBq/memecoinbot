@@ -1,6 +1,7 @@
 import { useApi } from "../lib/api";
 import type { CandidatesResponse } from "../types";
-import { fmtDateTime, fmtScore } from "../lib/format";
+import { fmtScore } from "../lib/format";
+import { useFmt } from "../lib/display";
 import { ActionBadge, Symbol } from "../components/Badges";
 import { Ago } from "../components/Ago";
 import { LensBars } from "../components/LensBars";
@@ -11,6 +12,7 @@ import { InlineError, StaleNote } from "../components/InlineError";
 export function Candidates() {
   const { data, error, loading, stale, refreshing, refetch } = useApi<CandidatesResponse>("/api/candidates");
   const candidates = data?.candidates ?? [];
+  const fmt = useFmt();
 
   return (
     <div className="view">
@@ -18,7 +20,7 @@ export function Candidates() {
         <div className="view-head">
           <h3 id="cand-h">Latest screen</h3>
           <span className="subtle">
-            {data?.screenedAt ? <>screened <Ago ts={data.screenedAt} /> ({fmtDateTime(data.screenedAt)})</> : data ? "no screen recorded yet" : ""}
+            {data?.screenedAt ? <>screened <Ago ts={data.screenedAt} /> ({fmt.dateTimeZoned(data.screenedAt)})</> : data ? "no screen recorded yet" : ""}
           </span>
         </div>
         {error && !data ? <InlineError message={error} onRetry={refetch} /> : null}

@@ -22,6 +22,7 @@ describe("ui server", () => {
   let staticDir: string;
   let emptyStaticServer: Server;
   let emptyBase: string;
+  const getFx = vi.fn(async () => ({ audPerUsd: 1.4232, asOf: NOW - 3_600_000, source: "test-fx" }));
   const getPrices = vi.fn(async (mints: string[]) => {
     const out: Record<string, number> = {};
     for (const m of mints) if (SEED.prices[m] !== undefined) out[m] = SEED.prices[m]!;
@@ -41,7 +42,7 @@ describe("ui server", () => {
     writeFileSync(join(staticDir, "assets", "pic.png"), Buffer.from([0x89, 0x50]));
     writeFileSync(join(staticDir, "manifest.json"), '{"name":"dash"}');
 
-    server = createServer({ ledger, cfg, getPrices, staticDir, configPath: resolve("config/strategy.yaml"), now: () => NOW });
+    server = createServer({ ledger, cfg, getPrices, getFx, staticDir, configPath: resolve("config/strategy.yaml"), now: () => NOW });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -94,6 +95,8 @@ describe("ui server", () => {
     expect(body.closedCount).toBe(3);
     expect(body.botHealthy).toBe(true);
     expect(body.breakers).toEqual({ haltNewEntries: false, killSwitch: false, reasons: [] });
+    expect(body.display).toEqual({ currency: "AUD", timezone: "Australia/Sydney", audPerUsd: 1.4232, fxAsOf: NOW - 3_600_000, fxSource: "test-fx" });
+    expect(getFx).toHaveBeenCalled();
     expect(getPrices).toHaveBeenCalled();
     expect(getPrices.mock.calls[0]![0].sort()).toEqual([MINTS.openA, MINTS.openB].sort());
     expect(ledger.getMeta("peak_equity_usd")).toBe(peakBefore);
@@ -242,6 +245,36 @@ describe("ui server", () => {
       expect(failing).toHaveBeenCalledTimes(1);
     } finally {
       await new Promise<void>((r) => s.close(() => r()));
+    }
+  });
+
+  it("answers summary with a null rate when the fx source fails or is slow, and honours display settings", async () => {
+    const failing = vi.fn(async () => {
+      throw new Error("fx down");
+    });
+    const s1 = createServer({ ledger, cfg, getPrices, getFx: failing, display: { currency: "USD", timezone: "UTC" }, staticDir, configPath: resolve("config/strategy.yaml"), now: () => NOW });
+    await new Promise<void>((r) => s1.listen(0, "127.0.0.1", r));
+    try {
+      const body = (await (await fetch(`http://127.0.0.1:${(s1.address() as AddressInfo).port}/api/summary`)).json()) as SummaryDto;
+      expect(body.display).toEqual({ currency: "USD", timezone: "UTC", audPerUsd: null, fxAsOf: null, fxSource: null });
+      expect(failing).toHaveBeenCalledTimes(1);
+    } finally {
+      await new Promise<void>((r) => s1.close(() => r()));
+    }
+
+    let release!: (v: { audPerUsd: number; asOf: number; source: string } | null) => void;
+    const slow = vi.fn(() => new Promise<{ audPerUsd: number; asOf: number; source: string } | null>((r) => (release = r)));
+    const s2 = createServer({ ledger, cfg, getPrices, getFx: slow, fxTimeoutMs: 20, staticDir, configPath: resolve("config/strategy.yaml"), now: () => NOW });
+    await new Promise<void>((r) => s2.listen(0, "127.0.0.1", r));
+    try {
+      const started = Date.now();
+      const body = (await (await fetch(`http://127.0.0.1:${(s2.address() as AddressInfo).port}/api/summary`)).json()) as SummaryDto;
+      expect(Date.now() - started).toBeLessThan(1000);
+      expect(body.display.audPerUsd).toBeNull();
+      expect(body.equityUsd).toBeCloseTo(1052, 6);
+      release(null);
+    } finally {
+      await new Promise<void>((r) => s2.close(() => r()));
     }
   });
 

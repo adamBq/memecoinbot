@@ -1,7 +1,8 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { EquityPointDto } from "../types";
-import { fmtDateShort, fmtDateTime, fmtPct, fmtTimeShort, fmtUsd, fmtUsdAxis } from "../lib/format";
+import { fmtPct, type Formatters } from "../lib/format";
+import { useFmt } from "../lib/display";
 import { DrawdownValue } from "./Delta";
 import { TableWrap } from "./TableWrap";
 
@@ -18,27 +19,22 @@ const tooltipStyle = {
   cursor: { stroke: "var(--axis)", strokeWidth: 1 },
 } as const;
 
-/** Explicit X ticks: local midnights for multi-day windows, 6-hour steps otherwise; thinned to <= MAX_TICKS. */
-function useTimeAxis(points: ReadonlyArray<{ ts: number }>): { ticks: number[]; fmt: (ts: number) => string } {
+/** Explicit X ticks: midnights in the display zone for multi-day windows, 6-hour steps otherwise; thinned to <= MAX_TICKS. */
+function useTimeAxis(points: ReadonlyArray<{ ts: number }>, fmt: Formatters): { ticks: number[]; fmtTick: (ts: number) => string } {
   return useMemo(() => {
     const first = points[0]?.ts ?? 0;
     const last = points[points.length - 1]?.ts ?? 0;
     const span = last - first;
     const ticks: number[] = [];
     if (span >= 2 * DAY) {
-      const d = new Date(first);
-      d.setHours(24, 0, 0, 0); // next local midnight; setDate keeps DST transitions on the midnight
-      while (d.getTime() <= last) {
-        ticks.push(d.getTime());
-        d.setDate(d.getDate() + 1);
-      }
+      ticks.push(...fmt.dayStarts(first, last));
     } else {
       const step = 6 * 3_600_000;
       for (let t = Math.ceil(first / step) * step; t <= last; t += step) ticks.push(t);
     }
     const stride = Math.max(1, Math.ceil(ticks.length / MAX_TICKS));
-    return { ticks: ticks.filter((_, i) => i % stride === 0), fmt: span >= 2 * DAY ? fmtDateShort : fmtTimeShort };
-  }, [points]);
+    return { ticks: ticks.filter((_, i) => i % stride === 0), fmtTick: span >= 2 * DAY ? fmt.dateShort : fmt.timeShort };
+  }, [points, fmt]);
 }
 
 /**
@@ -134,8 +130,9 @@ interface ChartProps {
 
 /** Equity curve: single-series area chart (series-1 blue, 10% wash, 2px line). */
 export const EquityChart = memo(function EquityChart({ points, labelId }: ChartProps) {
+  const fmt = useFmt();
   const data = useMemo(() => downsample(points, (p) => p.equityUsd), [points]);
-  const { ticks, fmt: fmtX } = useTimeAxis(data);
+  const { ticks, fmtTick } = useTimeAxis(data, fmt);
   const stats = useMemo(() => {
     const first = points[0];
     const last = points[points.length - 1];
@@ -149,46 +146,47 @@ export const EquityChart = memo(function EquityChart({ points, labelId }: ChartP
     const changePct = first.equityUsd > 0 ? ((last.equityUsd - first.equityUsd) / first.equityUsd) * 100 : 0;
     return { first, last, min, max, changePct };
   }, [points]);
-  const getRows = useCallback(() => points.map((p) => [fmtDateTime(p.ts), fmtUsd(p.equityUsd), fmtUsd(p.cashUsd)] as const), [points]);
+  const getRows = useCallback(() => points.map((p) => [fmt.dateTime(p.ts), fmt.money(p.equityUsd), fmt.money(p.cashUsd)] as const), [points, fmt]);
 
   if (!stats) return <p className="empty">No equity snapshots yet.</p>;
-  const summary = `Equity from ${fmtUsd(stats.first.equityUsd)} on ${fmtDateTime(stats.first.ts)} to ${fmtUsd(stats.last.equityUsd)} on ${fmtDateTime(stats.last.ts)} (${fmtPct(stats.changePct)}). Low ${fmtUsd(stats.min.equityUsd)} on ${fmtDateTime(stats.min.ts)}, high ${fmtUsd(stats.max.equityUsd)} on ${fmtDateTime(stats.max.ts)}. ${points.length} points.`;
+  const summary = `Equity from ${fmt.money(stats.first.equityUsd)} on ${fmt.dateTimeZoned(stats.first.ts)} to ${fmt.money(stats.last.equityUsd)} on ${fmt.dateTime(stats.last.ts)} (${fmtPct(stats.changePct)}). Low ${fmt.money(stats.min.equityUsd)} on ${fmt.dateTime(stats.min.ts)}, high ${fmt.money(stats.max.equityUsd)} on ${fmt.dateTime(stats.max.ts)}. ${points.length} points${fmt.converts ? "" : ", amounts in USD"}.`;
 
   return (
     <figure className="chart" aria-labelledby={labelId} style={{ margin: 0 }}>
       <div className="chart-summary">
-        <span>Now <strong>{fmtUsd(stats.last.equityUsd)}</strong></span>
-        <span>High <strong>{fmtUsd(stats.max.equityUsd)}</strong></span>
-        <span>Low <strong>{fmtUsd(stats.min.equityUsd)}</strong></span>
+        <span>Now <strong>{fmt.money(stats.last.equityUsd)}</strong></span>
+        <span>High <strong>{fmt.money(stats.max.equityUsd)}</strong></span>
+        <span>Low <strong>{fmt.money(stats.min.equityUsd)}</strong></span>
       </div>
       <div role="img" aria-label="Equity curve chart; summary and data table follow">
         <ResponsiveContainer width="100%" height={240}>
           <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }} accessibilityLayer={false}>
             <CartesianGrid vertical={false} stroke="var(--grid)" strokeWidth={1} />
-            <XAxis dataKey="ts" type="number" domain={["dataMin", "dataMax"]} scale="time" ticks={ticks} tickFormatter={fmtX} tick={tick} axisLine={axisLine} tickLine={false} minTickGap={40} />
-            <YAxis dataKey="equityUsd" domain={["auto", "auto"]} tickFormatter={(v) => fmtUsdAxis(Number(v))} tick={tick} axisLine={false} tickLine={false} width={56} />
-            <Tooltip {...tooltipStyle} labelFormatter={(v) => fmtDateTime(Number(v))} formatter={(v) => [fmtUsd(Number(v)), "Equity"]} />
+            <XAxis dataKey="ts" type="number" domain={["dataMin", "dataMax"]} scale="time" ticks={ticks} tickFormatter={fmtTick} tick={tick} axisLine={axisLine} tickLine={false} minTickGap={40} />
+            <YAxis dataKey="equityUsd" domain={["auto", "auto"]} tickFormatter={(v) => fmt.moneyAxis(Number(v))} tick={tick} axisLine={false} tickLine={false} width={66} />
+            <Tooltip {...tooltipStyle} labelFormatter={(v) => fmt.dateTime(Number(v))} formatter={(v) => [fmt.money(Number(v)), "Equity"]} />
             <Area type="monotone" dataKey="equityUsd" name="Equity" stroke="var(--series-1)" strokeWidth={2} fill="var(--series-1)" fillOpacity={0.1} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface-1)" }} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
       <figcaption>{summary}</figcaption>
-      <DataTable caption="Equity snapshots" columns={["Time", "Equity", "Cash"]} getRows={getRows} />
+      <DataTable caption="Equity snapshots" columns={[`Time (${fmt.zoneAbbr})`, `Equity (${fmt.currencySymbol})`, `Cash (${fmt.currencySymbol})`]} getRows={getRows} />
     </figure>
   );
 });
 
 /** Drawdown from running peak: single-series line (series-2 orange, 2px). */
 export const DrawdownChart = memo(function DrawdownChart({ points, labelId }: ChartProps) {
+  const fmt = useFmt();
   const full = useMemo(() => toDrawdown(points), [points]);
   const data = useMemo(() => downsample(full, (p) => p.drawdownPct), [full]);
-  const { ticks, fmt: fmtX } = useTimeAxis(data);
+  const { ticks, fmtTick } = useTimeAxis(data, fmt);
   const worst = useMemo(() => full.reduce<DrawdownPoint | null>((acc, p) => (acc === null || p.drawdownPct < acc.drawdownPct ? p : acc), null), [full]);
-  const getRows = useCallback(() => full.map((p) => [fmtDateTime(p.ts), fmtPct(p.drawdownPct)] as const), [full]);
+  const getRows = useCallback(() => full.map((p) => [fmt.dateTime(p.ts), fmtPct(p.drawdownPct)] as const), [full, fmt]);
 
   const last = full[full.length - 1];
   if (!last || !worst) return <p className="empty">No equity snapshots yet.</p>;
-  const summary = `Drawdown from peak equity over time. Current ${fmtPct(last.drawdownPct)}; worst ${fmtPct(worst.drawdownPct)} on ${fmtDateTime(worst.ts)}. ${full.length} points.`;
+  const summary = `Drawdown from peak equity over time. Current ${fmtPct(last.drawdownPct)}; worst ${fmtPct(worst.drawdownPct)} on ${fmt.dateTimeZoned(worst.ts)}. ${full.length} points.`;
   const floor = Math.min(-1, Math.floor(worst.drawdownPct) - 1);
 
   return (
@@ -201,15 +199,15 @@ export const DrawdownChart = memo(function DrawdownChart({ points, labelId }: Ch
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }} accessibilityLayer={false}>
             <CartesianGrid vertical={false} stroke="var(--grid)" strokeWidth={1} />
-            <XAxis dataKey="ts" type="number" domain={["dataMin", "dataMax"]} scale="time" ticks={ticks} tickFormatter={fmtX} tick={tick} axisLine={axisLine} tickLine={false} minTickGap={40} />
+            <XAxis dataKey="ts" type="number" domain={["dataMin", "dataMax"]} scale="time" ticks={ticks} tickFormatter={fmtTick} tick={tick} axisLine={axisLine} tickLine={false} minTickGap={40} />
             <YAxis dataKey="drawdownPct" domain={[floor, 0]} tickFormatter={(v) => fmtPct(Number(v))} tick={tick} axisLine={false} tickLine={false} width={48} />
-            <Tooltip {...tooltipStyle} labelFormatter={(v) => fmtDateTime(Number(v))} formatter={(v) => [fmtPct(Number(v)), "Drawdown"]} />
+            <Tooltip {...tooltipStyle} labelFormatter={(v) => fmt.dateTime(Number(v))} formatter={(v) => [fmtPct(Number(v)), "Drawdown"]} />
             <Line type="monotone" dataKey="drawdownPct" name="Drawdown" stroke="var(--series-2)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface-1)" }} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
       <figcaption>{summary}</figcaption>
-      <DataTable caption="Drawdown by time" columns={["Time", "Drawdown"]} getRows={getRows} />
+      <DataTable caption="Drawdown by time" columns={[`Time (${fmt.zoneAbbr})`, "Drawdown"]} getRows={getRows} />
     </figure>
   );
 });

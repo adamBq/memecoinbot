@@ -5,7 +5,7 @@
  */
 import type { Ledger } from "../execution/ledger.js";
 import type { PortfolioState, Position } from "../core/types.js";
-import type { StrategyConfig } from "../core/config.js";
+import { isValidTimezone, type StrategyConfig } from "../core/config.js";
 
 export const META = {
   cash: "cash_usd",
@@ -20,8 +20,23 @@ export const META = {
   lastTickAt: "last_tick_at",
 } as const;
 
+/**
+ * Timezone whose midnight resets the daily loss breaker. Separate from the display
+ * timezone on purpose: a cosmetic change must never move a risk boundary.
+ */
+const requestedTz = process.env.TRADING_DAY_TIMEZONE?.trim() || "Australia/Sydney";
+export const TRADING_DAY_TIMEZONE = isValidTimezone(requestedTz) ? requestedTz : "Australia/Sydney";
+
+const dayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TRADING_DAY_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** YYYY-MM-DD in the trading timezone (Sydney). The daily loss breaker resets at this midnight. */
 export function utcDayKey(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
+  return dayKeyFormatter.format(new Date(ts));
 }
 
 function num(ledger: Ledger, key: string, fallback: number): number {

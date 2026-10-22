@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ROUTES, hrefFor, type Route } from "../lib/router";
 import { useLastUpdatedAt, useRefresh } from "../lib/api";
+import { useDisplay, useFmt } from "../lib/display";
 import { Ago } from "./Ago";
 
 function Nav({ current }: { current: Route }) {
@@ -54,6 +55,22 @@ function RefreshControl() {
   );
 }
 
+/** Compact FX readout: "AUD · 1.4232 per USD" (timestamp and source hidden/title), or "USD (no FX rate)". */
+function FxBadge() {
+  const { currency, audPerUsd, fxAsOf, fxSource } = useDisplay();
+  const fmt = useFmt();
+  if (currency === "AUD" && audPerUsd !== null) {
+    const detail = `FX rate as of ${fmt.dateTimeZoned(fxAsOf)}${fxSource ? ` from ${fxSource}` : ""}`;
+    return (
+      <span className="fx" title={detail}>
+        AUD · {audPerUsd.toFixed(4)} per USD
+        <span className="visually-hidden">, {detail}</span>
+      </span>
+    );
+  }
+  return <span className="fx">USD (no FX rate)</span>;
+}
+
 export function TopBar({ route }: { route: Route }) {
   return (
     <header className="topbar">
@@ -61,6 +78,7 @@ export function TopBar({ route }: { route: Route }) {
         <div className="brand">
           <h1>Memecoin Bot</h1>
           <span className="mode">paper</span>
+          <FxBadge />
         </div>
         <RefreshControl />
       </div>

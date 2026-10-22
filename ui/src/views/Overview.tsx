@@ -1,7 +1,8 @@
 import { Suspense, lazy, useMemo } from "react";
 import { useApi } from "../lib/api";
-import type { EquityResponse, PositionsResponse, SummaryDto } from "../types";
-import { fmtDateTime, fmtPct, fmtScore, fmtUsd } from "../lib/format";
+import { useFmt, useSummary } from "../lib/display";
+import type { EquityResponse, PositionsResponse } from "../types";
+import { fmtPct, fmtScore } from "../lib/format";
 import { StatTile } from "../components/StatTile";
 import { Delta, DrawdownValue } from "../components/Delta";
 import { BreakerBanner } from "../components/Banner";
@@ -20,7 +21,8 @@ function chartFallback(error: Error, reset: () => void) {
 }
 
 export function Overview() {
-  const summary = useApi<SummaryDto>("/api/summary");
+  const summary = useSummary();
+  const fmt = useFmt();
   const equity = useApi<EquityResponse>("/api/equity");
   const positions = useApi<PositionsResponse>("/api/positions");
 
@@ -45,11 +47,11 @@ export function Overview() {
 
       <section aria-label="Key figures" aria-busy={summary.refreshing}>
         <div className="kpi-grid">
-          <StatTile label="Equity" hero value={s ? fmtUsd(s.equityUsd) : summary.loading ? "…" : "—"} delta={s ? <>vs start {fmtUsd(s.startingEquityUsd)}</> : undefined} />
+          <StatTile label="Equity" hero value={s ? fmt.money(s.equityUsd) : summary.loading ? "…" : "—"} delta={s ? <>vs start {fmt.money(s.startingEquityUsd)}{fmt.converts ? "" : " (USD, no FX rate)"}</> : undefined} />
           <StatTile label="Return" value={<Delta value={s?.returnPct} />} delta={s ? <>today <Delta value={s.dayPnlPct} /></> : undefined} />
-          <StatTile label="Cash" value={s ? fmtUsd(s.cashUsd) : "—"} delta={s ? <>{fmtPct(s.equityUsd > 0 ? (s.cashUsd / s.equityUsd) * 100 : null, { sign: false })} of equity</> : undefined} />
+          <StatTile label="Cash" value={s ? fmt.money(s.cashUsd) : "—"} delta={s ? <>{fmtPct(s.equityUsd > 0 ? (s.cashUsd / s.equityUsd) * 100 : null, { sign: false })} of equity</> : undefined} />
           <StatTile label="Open positions" value={s ? String(s.openCount) : "—"} delta={s ? <>{s.closedCount} closed</> : undefined} />
-          <StatTile label="Drawdown from peak" value={<DrawdownValue value={s?.drawdownFromPeakPct} />} delta={s ? <>peak {fmtUsd(s.peakEquityUsd)}</> : undefined} />
+          <StatTile label="Drawdown from peak" value={<DrawdownValue value={s?.drawdownFromPeakPct} />} delta={s ? <>peak {fmt.money(s.peakEquityUsd)}</> : undefined} />
           <StatTile
             label="Win rate"
             value={winRate ? fmtPct(winRate.pct, { sign: false }) : positions.loading ? "…" : "—"}
@@ -69,14 +71,14 @@ export function Overview() {
             <dl className="meta-list" style={{ flexBasis: "100%", marginTop: 8 }}>
               <dt>Last tick</dt>
               <dd>
-                <Ago ts={s.lastTickAt} /> <span className="muted">({fmtDateTime(s.lastTickAt)})</span>
+                <Ago ts={s.lastTickAt} /> <span className="muted">({fmt.dateTimeZoned(s.lastTickAt)})</span>
               </dd>
               <dt>Last screen</dt>
               <dd>
-                <Ago ts={s.lastScreenAt} /> <span className="muted">({fmtDateTime(s.lastScreenAt)})</span>
+                <Ago ts={s.lastScreenAt} /> <span className="muted">({fmt.dateTime(s.lastScreenAt)})</span>
               </dd>
               <dt>Started</dt>
-              <dd>{fmtDateTime(s.startedAt)}</dd>
+              <dd>{fmt.dateTime(s.startedAt)}</dd>
               <dt>Consecutive losses</dt>
               <dd>{fmtScore(s.consecutiveLosses) === "—" ? "—" : String(s.consecutiveLosses)}</dd>
               <dt>Config hash</dt>

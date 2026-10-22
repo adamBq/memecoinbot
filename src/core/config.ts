@@ -85,11 +85,40 @@ const StrategySchema = z.object({
 
 export type StrategyConfig = z.infer<typeof StrategySchema>;
 
+export type DisplayCurrency = "AUD" | "USD";
+export const DEFAULT_DISPLAY_CURRENCY: DisplayCurrency = "AUD";
+export const DEFAULT_DISPLAY_TIMEZONE = "Australia/Sydney";
+
 export interface AppEnv {
   tradingMode: "paper" | "live";
   dbPath: string;
   strategyConfigPath: string;
   anthropicApiKey: string | undefined;
+  /** Currency the dashboard renders money in. Ledger amounts stay USD; conversion is the UI's job. */
+  displayCurrency: DisplayCurrency;
+  /** IANA zone the dashboard renders timestamps in. */
+  displayTimezone: string;
+}
+
+/** True when `tz` is an IANA zone this runtime's Intl data recognises. */
+export function isValidTimezone(tz: string): boolean {
+  if (tz.trim() === "") return false;
+  try {
+    new Intl.DateTimeFormat("en-AU", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseDisplayCurrency(raw: string | undefined): DisplayCurrency {
+  const v = (raw ?? "").trim().toUpperCase();
+  return v === "AUD" || v === "USD" ? v : DEFAULT_DISPLAY_CURRENCY;
+}
+
+function parseDisplayTimezone(raw: string | undefined): string {
+  const v = (raw ?? "").trim();
+  return isValidTimezone(v) ? v : DEFAULT_DISPLAY_TIMEZONE;
 }
 
 export function loadEnv(): AppEnv {
@@ -100,6 +129,8 @@ export function loadEnv(): AppEnv {
     dbPath: process.env.DB_PATH ?? "data/memecoinbot.db",
     strategyConfigPath: process.env.STRATEGY_CONFIG ?? "config/strategy.yaml",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || undefined,
+    displayCurrency: parseDisplayCurrency(process.env.DISPLAY_CURRENCY),
+    displayTimezone: parseDisplayTimezone(process.env.DISPLAY_TIMEZONE),
   };
 }
 

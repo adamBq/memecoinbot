@@ -51,6 +51,9 @@ export interface Position {
 
 // ---- DTOs from the contract ----
 
+/** Presentation preferences chosen on the server. Absent on older servers. */
+export interface DisplayDto { currency: "AUD" | "USD"; timezone: string; audPerUsd: number | null; fxAsOf: number | null; fxSource: string | null }
+
 export interface SummaryDto {
   generatedAt: number; startedAt: number | null; mode: "paper"; configHash: string | null; llmEnabled: boolean;
   startingEquityUsd: number; equityUsd: number; cashUsd: number; returnPct: number;
@@ -62,6 +65,7 @@ export interface SummaryDto {
   botHealthy: boolean;
   /** true when any open position lacks a live mark or its mark is older than 2 minutes */
   pricesStale: boolean;
+  display?: DisplayDto | null;
 }
 export interface EquityPointDto { ts: number; equityUsd: number; cashUsd: number }
 export interface OpenPositionDto extends Position { currentPriceUsd: number | null; pnlPct: number | null; unrealizedPnlUsd: number | null; peakPct: number | null; ageHours: number; remainingPct: number; /** age of the live mark at response time, null when there is no mark */ priceAgeMs: number | null }

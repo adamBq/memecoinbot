@@ -1,7 +1,8 @@
 import { Fragment, useId, useMemo, useState } from "react";
 import { REFRESH_MS, useApi } from "../lib/api";
 import type { DecisionAction, DecisionsResponse } from "../types";
-import { fmtDateTime, fmtScore } from "../lib/format";
+import { fmtScore } from "../lib/format";
+import { useFmt } from "../lib/display";
 import { ActionBadge, Symbol } from "../components/Badges";
 import { LensBars } from "../components/LensBars";
 import { Reason } from "../components/Reasons";
@@ -18,6 +19,7 @@ export function Decisions() {
   const [open, setOpen] = useState<string | null>(null);
   const searchId = useId();
   const baseId = useId();
+  const fmt = useFmt();
 
   const path = useMemo(() => {
     const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
@@ -83,7 +85,7 @@ export function Decisions() {
               <thead>
                 <tr>
                   <th scope="col"><span className="visually-hidden">Details</span></th>
-                  <th scope="col">Time</th>
+                  <th scope="col">Time ({fmt.zoneAbbr})</th>
                   <th scope="col">Symbol</th>
                   <th scope="col">Action</th>
                   <th scope="col" className="num">Composite</th>
@@ -104,7 +106,7 @@ export function Decisions() {
                             <span aria-hidden="true">{expanded ? "▾" : "▸"}</span>
                           </button>
                         </td>
-                        <td>{fmtDateTime(d.ts)}</td>
+                        <td>{fmt.dateTime(d.ts)}</td>
                         <th scope="row"><Symbol symbol={d.symbol} mint={d.mint} /></th>
                         <td><ActionBadge action={String(d.action)} /></td>
                         <td className="num">{d.lenses ? fmtScore(d.total) : <span className="muted">—</span>}</td>

@@ -17,7 +17,10 @@ async function journey(page: Page, opts: { query: string; prefix: string; base?:
   await expect(page.getByRole("heading", { name: "Overview", level: 2 })).toBeVisible();
   await expect(page).toHaveTitle(/Overview/);
   const equity = page.locator(".tile", { hasText: "Equity" }).first();
-  await expect(equity.locator(".value")).toHaveText(/\$\s?[\d,]+(\.\d+)?/);
+  // Money is displayed in AUD when an FX rate is available, USD otherwise.
+  await expect(equity.locator(".value")).toHaveText(/(A\$|US\$|\$)\s?[\d,]+(\.\d+)?/);
+  // Times are shown in Sydney time with the zone abbreviation.
+  await expect(page.getByRole("region", { name: "Bot health" })).toContainText(/AE[DS]T/);
   const health = page.getByRole("region", { name: "Bot health" });
   await expect(health.getByText(/^(Healthy|Stalled)$/)).toBeVisible();
   await expect(page.locator(".refresh-state")).toHaveText("Live");

@@ -1,6 +1,7 @@
 import { useApi } from "../lib/api";
-import type { PositionsResponse, SummaryDto } from "../types";
-import { fmtDateTime, fmtHours, fmtPct, fmtScore, fmtTokenPrice, fmtUsd } from "../lib/format";
+import { useFmt, useSummary } from "../lib/display";
+import type { PositionsResponse } from "../types";
+import { fmtHours, fmtPct, fmtScore } from "../lib/format";
 import { Delta } from "../components/Delta";
 import { Symbol } from "../components/Badges";
 import { Ago } from "../components/Ago";
@@ -10,7 +11,9 @@ import { InlineError, StaleNote } from "../components/InlineError";
 
 export function Positions() {
   const { data, error, loading, stale, refreshing, refetch, updatedAt } = useApi<PositionsResponse>("/api/positions");
-  const summary = useApi<SummaryDto>("/api/summary");
+  const summary = useSummary();
+  const fmt = useFmt();
+  const cur = fmt.currencySymbol;
   const pricesStale = summary.data?.pricesStale === true;
   const open = data?.open ?? [];
   const closed = data?.closed ?? [];
@@ -37,16 +40,16 @@ export function Positions() {
                 <tr>
                   <th scope="col">Symbol</th>
                   <th scope="col" className="num">P&amp;L</th>
-                  <th scope="col" className="num">Unrealized</th>
+                  <th scope="col" className="num">Unrealized ({cur})</th>
                   <th scope="col" className="num">Peak</th>
-                  <th scope="col" className="num">Entry</th>
-                  <th scope="col" className="num">Current</th>
-                  <th scope="col" className="num">Cost</th>
+                  <th scope="col" className="num">Entry ({cur})</th>
+                  <th scope="col" className="num">Current ({cur})</th>
+                  <th scope="col" className="num">Cost ({cur})</th>
                   <th scope="col" className="num">Remaining</th>
                   <th scope="col" className="num">Age</th>
                   <th scope="col">TP1</th>
                   <th scope="col" className="num">Score</th>
-                  <th scope="col">Opened</th>
+                  <th scope="col">Opened ({fmt.zoneAbbr})</th>
                 </tr>
               </thead>
               <tbody>
@@ -54,27 +57,27 @@ export function Positions() {
                   <tr key={`${p.id}:${i}`}>
                     <th scope="row"><Symbol symbol={p.symbol} mint={p.mint} /></th>
                     <td className="num"><Delta value={p.pnlPct} /></td>
-                    <td className="num">{fmtUsd(p.unrealizedPnlUsd)}</td>
+                    <td className="num">{fmt.money(p.unrealizedPnlUsd)}</td>
                     <td className="num"><Delta value={p.peakPct} /></td>
-                    <td className="num">{fmtTokenPrice(p.entryPriceUsd)}</td>
+                    <td className="num">{fmt.tokenPrice(p.entryPriceUsd)}</td>
                     <td className="num">
                       {p.currentPriceUsd === null ? (
                         <span className="muted">no price</span>
                       ) : (
                         <>
-                          {fmtTokenPrice(p.currentPriceUsd)}
+                          {fmt.tokenPrice(p.currentPriceUsd)}
                           {typeof p.priceAgeMs === "number" && updatedAt !== null ? (
                             <span className="muted price-age"> (<Ago ts={updatedAt - p.priceAgeMs} />)</span>
                           ) : null}
                         </>
                       )}
                     </td>
-                    <td className="num">{fmtUsd(p.costBasisUsd)}</td>
+                    <td className="num">{fmt.money(p.costBasisUsd)}</td>
                     <td className="num">{fmtPct(p.remainingPct, { sign: false })}</td>
                     <td className="num">{fmtHours(p.ageHours)}</td>
                     <td>{p.tp1Hit ? "hit" : "—"}</td>
                     <td className="num">{fmtScore(p.entryScore)}</td>
-                    <td>{fmtDateTime(p.openedAt)}</td>
+                    <td>{fmt.dateTime(p.openedAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -95,13 +98,13 @@ export function Positions() {
                 <tr>
                   <th scope="col">Symbol</th>
                   <th scope="col" className="num">P&amp;L</th>
-                  <th scope="col" className="num">Realized</th>
+                  <th scope="col" className="num">Realized ({cur})</th>
                   <th scope="col" className="num">Hold</th>
                   <th scope="col">Exit reason</th>
-                  <th scope="col" className="num">Entry</th>
-                  <th scope="col" className="num">Cost</th>
+                  <th scope="col" className="num">Entry ({cur})</th>
+                  <th scope="col" className="num">Cost ({cur})</th>
                   <th scope="col" className="num">Score</th>
-                  <th scope="col">Closed</th>
+                  <th scope="col">Closed ({fmt.zoneAbbr})</th>
                 </tr>
               </thead>
               <tbody>
@@ -109,13 +112,13 @@ export function Positions() {
                   <tr key={`${p.id}:${i}`}>
                     <th scope="row"><Symbol symbol={p.symbol} mint={p.mint} /></th>
                     <td className="num"><Delta value={p.pnlPct} /></td>
-                    <td className="num">{fmtUsd(p.realizedPnlUsd)}</td>
+                    <td className="num">{fmt.money(p.realizedPnlUsd)}</td>
                     <td className="num">{fmtHours(p.holdHours)}</td>
                     <td className="wrap">{p.closeReason ? <Reason text={String(p.closeReason)} /> : <span className="muted">—</span>}</td>
-                    <td className="num">{fmtTokenPrice(p.entryPriceUsd)}</td>
-                    <td className="num">{fmtUsd(p.costBasisUsd)}</td>
+                    <td className="num">{fmt.tokenPrice(p.entryPriceUsd)}</td>
+                    <td className="num">{fmt.money(p.costBasisUsd)}</td>
                     <td className="num">{fmtScore(p.entryScore)}</td>
-                    <td>{fmtDateTime(p.closedAt)}</td>
+                    <td>{fmt.dateTime(p.closedAt)}</td>
                   </tr>
                 ))}
               </tbody>

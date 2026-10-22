@@ -7,7 +7,7 @@
  * numbers (12.5 means 12.5%).
  */
 import type { LensName, Order, Position } from "../core/types.js";
-import type { StrategyConfig } from "../core/config.js";
+import type { DisplayCurrency, StrategyConfig } from "../core/config.js";
 import type { Report } from "../ops/report.js";
 
 export type DecisionAction = "filtered" | "skip" | "enter" | "exit";
@@ -38,6 +38,20 @@ export interface SummaryDto {
   botHealthy: boolean;
   /** true when any open position has no live mark or its mark is older than 2 minutes */
   pricesStale: boolean;
+  /** How the UI should render money and time. Every amount in every DTO stays USD. */
+  display: DisplayDto;
+}
+
+export interface DisplayDto {
+  currency: DisplayCurrency;
+  /** IANA zone, e.g. "Australia/Sydney". */
+  timezone: string;
+  /** AUD per 1 USD, null when no rate is available (render USD then). */
+  audPerUsd: number | null;
+  /** When the rate was published, ms. */
+  fxAsOf: number | null;
+  /** Host the rate came from. */
+  fxSource: string | null;
 }
 
 export interface EquityPointDto {

@@ -1,0 +1,20 @@
+{
+  "result": "success",
+  "provider": "https://www.exchangerate-api.com",
+  "documentation": "https://www.exchangerate-api.com/docs/free",
+  "terms_of_use": "https://www.exchangerate-api.com/terms",
+  "time_last_update_unix": 1792627351,
+  "time_last_update_utc": "Thu, 22 Oct 2026 00:02:31 +0000",
+  "time_next_update_unix": 1792714061,
+  "time_next_update_utc": "Fri, 23 Oct 2026 00:07:41 +0000",
+  "time_eol_unix": 0,
+  "base_code": "USD",
+  "rates": {
+    "USD": 1,
+    "AUD": 1.423201,
+    "EUR": 0.890292,
+    "GBP": 0.746668,
+    "JPY": 158.100039,
+    "NZD": 1.755782
+  }
+}

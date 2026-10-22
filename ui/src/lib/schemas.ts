@@ -36,6 +36,7 @@ const summary = z.looseObject({
   dayStartEquityUsd: num, dayPnlPct: num, openCount: num, closedCount: num, killed: bool, haltedUntil: nnum, consecutiveLosses: num,
   breakers: z.looseObject({ haltNewEntries: bool, killSwitch: bool, reasons: z.array(str) }),
   lastTickAt: nnum, lastScreenAt: nnum, botHealthy: bool, pricesStale: bool,
+  display: z.looseObject({ currency: z.enum(["AUD", "USD"]), timezone: str, audPerUsd: nnum, fxAsOf: nnum, fxSource: str.nullable() }).nullable().optional(),
 });
 
 const SCHEMAS: Record<string, z.ZodType> = {

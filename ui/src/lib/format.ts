@@ -1,31 +1,33 @@
-/** Formatting helpers. Every number shown in the UI goes through one of these. */
+/**
+ * Formatting helpers. Pure helpers (percentages, durations, scores) are exported directly;
+ * anything that shows money or a clock time comes from `makeFormatters(display)` so the
+ * user's currency and timezone are applied everywhere. Components get one via `useFmt()`.
+ */
 
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const usdCompact = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
-const usdWhole = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const sig8 = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 8, useGrouping: false });
-const pct1 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const qty = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+export type Currency = "AUD" | "USD";
+
+export interface DisplaySettings {
+  currency: Currency;
+  /** IANA zone, e.g. "Australia/Sydney". */
+  timezone: string;
+  audPerUsd: number | null;
+  fxAsOf: number | null;
+  fxSource: string | null;
+}
+
+export const DEFAULT_TIMEZONE = "Australia/Sydney";
+export const DEFAULT_DISPLAY: DisplaySettings = { currency: "USD", timezone: DEFAULT_TIMEZONE, audPerUsd: null, fxAsOf: null, fxSource: null };
+
+const LOCALE = "en-AU";
 
 function finite(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
-/** USD with 2 decimals: $1,234.56. */
-export function fmtUsd(v: number | null | undefined): string {
-  return finite(v) ? usd.format(v) : "—";
-}
+// ---- pure helpers ----
 
-/** USD for axis ticks: whole dollars with grouping under $10K ($1,150), compact above ($12.3K). */
-export function fmtUsdAxis(v: number | null | undefined): string {
-  if (!finite(v)) return "—";
-  return Math.abs(v) < 10_000 ? usdWhole.format(v) : usdCompact.format(v);
-}
-
-/** Token price with up to 8 significant digits, no exponent: $0.000012345678. */
-export function fmtTokenPrice(v: number | null | undefined): string {
-  return finite(v) ? `$${sig8.format(v)}` : "—";
-}
+const pct1 = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const qty = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 2 });
 
 /** Percentage, 1 decimal, explicit sign: +12.5% / -3.2% / 0.0%. Input is a plain number (12.5 means 12.5%). */
 export function fmtPct(v: number | null | undefined, { sign = true }: { sign?: boolean } = {}): string {
@@ -57,7 +59,7 @@ export function fmtHours(h: number | null | undefined): string {
   return rem > 0 ? `${days}d ${rem}h` : `${days}d`;
 }
 
-/** Relative time: "just now", "42s ago", "5m ago", "3h ago", "2d ago". */
+/** Relative time: "just now", "42s ago", "5m ago", "3h ago", "2d ago". Zone-independent. */
 export function fmtAgo(ts: number | null | undefined, now = Date.now()): string {
   if (!finite(ts)) return "never";
   const s = Math.max(0, Math.round((now - ts) / 1000));
@@ -70,23 +72,119 @@ export function fmtAgo(ts: number | null | undefined, now = Date.now()): string 
   return `${Math.floor(h / 24)}d ago`;
 }
 
-/** Absolute local date-time for titles and tables. */
-export function fmtDateTime(ts: number | null | undefined): string {
-  if (!finite(ts)) return "—";
-  return new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-/** Short date for chart axes. */
-export function fmtDateShort(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-/** Time of day for chart axes when the window is under two days. */
-export function fmtTimeShort(ts: number): string {
-  return new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
 /** First and last characters of a mint for compact display. */
 export function fmtMint(mint: string): string {
   return mint.length > 12 ? `${mint.slice(0, 4)}…${mint.slice(-4)}` : mint;
+}
+
+// ---- currency + timezone aware formatters ----
+
+export interface Formatters {
+  /** "A$" when converting to AUD, otherwise "US$" (visible USD label). */
+  currencySymbol: string;
+  /** True when amounts are converted to AUD. */
+  converts: boolean;
+  /** Zone abbreviation for the current instant, e.g. "AEDT" / "AEST". */
+  zoneAbbr: string;
+  timezone: string;
+  /** Money with 2 decimals: A$1,234.56 / -US$9.92. */
+  money(usd: number | null | undefined): string;
+  /** Axis ticks: whole units under 10K (A$1,150), compact above (A$12.3K). */
+  moneyAxis(usd: number | null | undefined): string;
+  /** Token unit price, up to 8 significant digits, converted: A$0.000012345678. */
+  tokenPrice(usd: number | null | undefined): string;
+  /** "22 Oct, 13:10" in the display zone. */
+  dateTime(ts: number | null | undefined): string;
+  /** "22 Oct, 13:10 AEDT": use where a date stands alone (captions, health panel). */
+  dateTimeZoned(ts: number | null | undefined): string;
+  /** "16 Oct" for chart axes. */
+  dateShort(ts: number): string;
+  /** "13:10" for chart axes on short windows. */
+  timeShort(ts: number): string;
+  /** Epoch ms of each local midnight in the display zone strictly after `first` and up to `last`. */
+  dayStarts(first: number, last: number): number[];
+}
+
+function safeZone(tz: string): string {
+  try {
+    new Intl.DateTimeFormat(LOCALE, { timeZone: tz });
+    return tz;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+
+interface ZoneParts { y: number; m: number; d: number; h: number; mi: number; s: number }
+
+function zonePartsReader(tz: string): (ts: number) => ZoneParts {
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" });
+  return (ts) => {
+    const p: Record<string, number> = {};
+    for (const part of f.formatToParts(ts)) if (part.type !== "literal") p[part.type] = Number(part.value);
+    return { y: p.year ?? 1970, m: p.month ?? 1, d: p.day ?? 1, h: (p.hour ?? 0) % 24, mi: p.minute ?? 0, s: p.second ?? 0 };
+  };
+}
+
+/** Build the formatter set for a display setting. Cheap enough to memoize per settings object. */
+export function makeFormatters(display: DisplaySettings): Formatters {
+  const timezone = safeZone(display.timezone);
+  const converts = display.currency === "AUD" && finite(display.audPerUsd) && display.audPerUsd > 0;
+  const rate = converts ? (display.audPerUsd as number) : 1;
+  const symbol = converts ? "A$" : "US$";
+
+  const two = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const whole = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
+  const compact = new Intl.NumberFormat(LOCALE, { notation: "compact", maximumFractionDigits: 1 });
+  const sig8 = new Intl.NumberFormat(LOCALE, { maximumSignificantDigits: 8, useGrouping: false });
+
+  const signed = (v: number, body: string) => `${v < 0 ? "-" : ""}${symbol}${body}`;
+
+  const dt = new Intl.DateTimeFormat(LOCALE, { timeZone: timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const dtz = new Intl.DateTimeFormat(LOCALE, { timeZone: timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" });
+  const dShort = new Intl.DateTimeFormat(LOCALE, { timeZone: timezone, day: "numeric", month: "short" });
+  const tShort = new Intl.DateTimeFormat(LOCALE, { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const zoneAbbr = new Intl.DateTimeFormat(LOCALE, { timeZone: timezone, timeZoneName: "short" }).formatToParts(Date.now()).find((p) => p.type === "timeZoneName")?.value ?? timezone;
+
+  const parts = zonePartsReader(timezone);
+  const offsetMs = (ts: number) => {
+    const p = parts(ts);
+    return Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s) - Math.floor(ts / 1000) * 1000;
+  };
+  /** Midnight in the zone on the day after the day containing `ts`, DST-safe. */
+  const startOfNextDay = (ts: number): number => {
+    const p = parts(ts);
+    let guess = Date.UTC(p.y, p.m - 1, p.d + 1) - offsetMs(ts);
+    const q = parts(guess);
+    const intoDay = (q.h * 3600 + q.mi * 60 + q.s) * 1000;
+    if (intoDay !== 0) guess += intoDay > 12 * 3_600_000 ? 86_400_000 - intoDay : -intoDay;
+    return guess;
+  };
+
+  return {
+    currencySymbol: symbol,
+    converts,
+    zoneAbbr,
+    timezone,
+    money: (usd) => (finite(usd) ? signed(usd * rate, two.format(Math.abs(usd * rate))) : "—"),
+    moneyAxis: (usd) => {
+      if (!finite(usd)) return "—";
+      const v = usd * rate;
+      return signed(v, Math.abs(v) < 10_000 ? whole.format(Math.abs(v)) : compact.format(Math.abs(v)));
+    },
+    tokenPrice: (usd) => (finite(usd) ? signed(usd * rate, sig8.format(Math.abs(usd * rate))) : "—"),
+    dateTime: (ts) => (finite(ts) ? dt.format(ts) : "—"),
+    dateTimeZoned: (ts) => (finite(ts) ? dtz.format(ts) : "—"),
+    dateShort: (ts) => dShort.format(ts),
+    timeShort: (ts) => tShort.format(ts),
+    dayStarts: (first, last) => {
+      const out: number[] = [];
+      let t = startOfNextDay(first);
+      let guard = 0;
+      while (t <= last && guard++ < 4000) {
+        out.push(t);
+        t = startOfNextDay(t);
+      }
+      return out;
+    },
+  };
 }

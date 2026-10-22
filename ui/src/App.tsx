@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { RefreshProvider } from "./lib/api";
+import { DisplayProvider } from "./lib/display";
 import { ROUTES, useHashRoute, type Route } from "./lib/router";
 import { TopBar } from "./components/TopBar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -74,7 +75,9 @@ export function App() {
   return (
     <ErrorBoundary fallback={shellFallback}>
       <RefreshProvider>
-        <Shell />
+        <DisplayProvider>
+          <Shell />
+        </DisplayProvider>
       </RefreshProvider>
     </ErrorBoundary>
   );

@@ -16,6 +16,7 @@ import {
   buildSummary,
   parseLenses,
   priceBook,
+  toDisplayDto,
   toPriceMap,
   PRICE_STALE_MS,
   DECISIONS_MAX_OFFSET,
@@ -67,6 +68,18 @@ describe("ui api builders", () => {
       expect(s.lastScreenAt).toBe(SEED.lastScreenAt);
       expect(s.botHealthy).toBe(true);
       expect(s.pricesStale).toBe(false);
+      // default display: AUD / Sydney with no rate
+      expect(s.display).toEqual({ currency: "AUD", timezone: "Australia/Sydney", audPerUsd: null, fxAsOf: null, fxSource: null });
+    });
+
+    it("surfaces the display preferences and the injected FX rate, keeping amounts in USD", () => {
+      const fx = { audPerUsd: 1.4232, asOf: NOW - 60_000, source: "open.er-api.com" };
+      const s = buildSummary(ledger, cfg, priceBook(SEED.prices, NOW), NOW, { currency: "AUD", timezone: "Australia/Sydney", fx });
+      expect(s.display).toEqual({ currency: "AUD", timezone: "Australia/Sydney", audPerUsd: 1.4232, fxAsOf: NOW - 60_000, fxSource: "open.er-api.com" });
+      expect(s.equityUsd).toBeCloseTo(1052, 6); // not converted
+      const usd = buildSummary(ledger, cfg, priceBook(SEED.prices, NOW), NOW, { currency: "USD", timezone: "UTC", fx: null });
+      expect(usd.display).toEqual({ currency: "USD", timezone: "UTC", audPerUsd: null, fxAsOf: null, fxSource: null });
+      expect(toDisplayDto({ currency: "USD", timezone: "UTC", fx })).toMatchObject({ audPerUsd: 1.4232 });
     });
 
     it("flags stale prices when a mark is missing or older than 2 minutes", () => {

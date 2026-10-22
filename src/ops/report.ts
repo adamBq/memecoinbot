@@ -79,11 +79,24 @@ export function buildReport(ledger: Ledger, startingEquityUsd: number, currentEq
   };
 }
 
+const REPORT_TZ = process.env.DISPLAY_TIMEZONE || "Australia/Sydney";
+const tsFmt = new Intl.DateTimeFormat("en-AU", {
+  timeZone: REPORT_TZ,
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZoneName: "short",
+});
+const when = (ts: number) => tsFmt.format(new Date(ts));
+
 export function formatReport(r: Report): string {
   const f = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : String(n));
   const lines = [
-    `# memecoinbot paper report  ${new Date(r.generatedAt).toISOString()}`,
-    r.startedAt ? `started ${new Date(r.startedAt).toISOString()}  (${((r.generatedAt - r.startedAt) / 86400e3).toFixed(1)} days)` : "",
+    `# memecoinbot paper report  ${when(r.generatedAt)}  (amounts in USD; the dashboard shows AUD)`,
+    r.startedAt ? `started ${when(r.startedAt)}  (${((r.generatedAt - r.startedAt) / 86400e3).toFixed(1)} days)` : "",
     ``,
     `equity      ${f(r.equityUsd)} USD  (start ${f(r.startingEquityUsd)}, return ${f(r.returnPct)}%)`,
     `cash        ${f(r.cashUsd)} USD   peak ${f(r.peakEquityUsd)}   max drawdown ${f(r.maxDrawdownPct)}%`,
@@ -94,7 +107,7 @@ export function formatReport(r: Report): string {
     `last 24h    scored ${r.decisionsLast24h.scored}, filtered ${r.decisionsLast24h.filtered}, entered ${r.decisionsLast24h.entered}, exited ${r.decisionsLast24h.exited}`,
     ``,
     `notes:`,
-    ...r.notes.map((n) => `  ${new Date(n.ts).toISOString()}  ${n.text}`),
+    ...r.notes.map((n) => `  ${when(n.ts)}  ${n.text}`),
   ];
   return lines.filter((l) => l !== undefined).join("\n");
 }

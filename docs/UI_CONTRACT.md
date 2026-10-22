@@ -29,6 +29,8 @@ export interface SummaryDto {
   botHealthy: boolean;
   /** true when any open position has no live mark or its mark is older than 2 minutes */
   pricesStale: boolean;
+  /** How the UI renders money and time. Every amount in every DTO stays USD; conversion is the UI's job. */
+  display: { currency: "AUD" | "USD"; timezone: string; audPerUsd: number | null; fxAsOf: number | null; fxSource: string | null };
 }
 export interface EquityPointDto { ts: number; equityUsd: number; cashUsd: number }
 // priceAgeMs: age of currentPriceUsd in ms, null without a live mark. peakPct is null when the entry price is not positive.
@@ -43,7 +45,7 @@ export interface NoteDto { ts: number; text: string }
 | Path | Query | Response |
 |---|---|---|
 | `/api/health` | | `{ ok: true, ts }` |
-| `/api/summary` | | `SummaryDto` (uses `loadPortfolio(..., { readOnly: true })`, `evaluateBreakers`, live prices for open positions) |
+| `/api/summary` | | `SummaryDto` (uses `loadPortfolio(..., { readOnly: true })`, `evaluateBreakers`, live prices for open positions; `display` from `DISPLAY_CURRENCY` (AUD or USD, default AUD) and `DISPLAY_TIMEZONE` (IANA, default Australia/Sydney) with the USD->AUD rate from `src/ui/fx.ts`: open.er-api.com, fallback api.frankfurter.dev, cached 1h, `audPerUsd` null when both are down and nothing is cached) |
 | `/api/equity` | | `{ points: EquityPointDto[] }` ascending, plus a final synthetic point for "now" using live marks |
 | `/api/positions` | | `{ open: OpenPositionDto[]; closed: ClosedPositionDto[] }` closed newest first, max 200 |
 | `/api/orders` | `limit` (default 100) | `{ orders: Order[] }` newest first |

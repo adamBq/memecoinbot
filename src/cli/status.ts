@@ -15,11 +15,12 @@ if (open.length > 0) {
 }
 const pf = loadPortfolio(ledger, prices, Date.now(), { readOnly: true });
 console.log(`equity ${pf.equityUsd.toFixed(2)}  cash ${pf.cashUsd.toFixed(2)}  peak ${pf.peakEquityUsd.toFixed(2)}  dayStart ${pf.dayStartEquityUsd.toFixed(2)}  killed ${pf.killed}`);
-console.log(`last tick ${ledger.getMeta("last_tick_at") ? new Date(Number(ledger.getMeta("last_tick_at"))).toISOString() : "never"}  last screen ${ledger.getMeta("last_screen_at") ? new Date(Number(ledger.getMeta("last_screen_at"))).toISOString() : "never"}`);
+const local = (v: string | null) => (v ? new Date(Number(v)).toLocaleString("en-AU", { timeZone: process.env.DISPLAY_TIMEZONE || "Australia/Sydney", timeZoneName: "short" }) : "never");
+console.log(`last tick ${local(ledger.getMeta("last_tick_at"))}  last screen ${local(ledger.getMeta("last_screen_at"))}`);
 console.table(
   open.map((p) => ({
     symbol: p.symbol,
-    opened: new Date(p.openedAt).toISOString().slice(0, 16),
+    opened: new Date(p.openedAt).toLocaleString("en-AU", { timeZone: process.env.DISPLAY_TIMEZONE || "Australia/Sydney", hour12: false }),
     entry: p.entryPriceUsd,
     now: prices[p.mint] ?? null,
     pnlPct: prices[p.mint] ? pnlPct(p, prices[p.mint]!).toFixed(1) : "?",

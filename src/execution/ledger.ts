@@ -41,6 +41,11 @@ export interface EquityPoint {
   cashUsd: number;
 }
 
+export interface LedgerOptions {
+  /** Open the database read-only: skips mkdir, write pragmas, and migrations. Write methods throw. */
+  readOnly?: boolean;
+}
+
 export type OpenPositionInput = Omit<
   Position,
   "id" | "status" | "closedAt" | "realizedPnlUsd" | "remainingQtyTokens" | "tp1Hit" | "closeReason" | "peakPriceUsd"
@@ -227,16 +232,26 @@ export class Ledger {
     getNotes: StatementSync;
   };
 
-  /** `":memory:"` is allowed for tests. Parent directories of a file path are created. */
-  constructor(dbPath: string) {
-    if (dbPath !== ":memory:" && dbPath !== "") {
+  /** True when opened with `{ readOnly: true }`: no migrations, no pragmas, writes throw. */
+  readonly isReadOnly: boolean;
+
+  /**
+   * `":memory:"` is allowed for tests. Parent directories of a file path are created.
+   * With `readOnly: true` the file is opened read-only (SQLITE_OPEN_READONLY): no directory is
+   * created, no write pragmas run, no migrations run, and every write method throws.
+   */
+  constructor(dbPath: string, opts: LedgerOptions = {}) {
+    this.isReadOnly = opts.readOnly === true;
+    if (!this.isReadOnly && dbPath !== ":memory:" && dbPath !== "") {
       mkdirSync(dirname(dbPath), { recursive: true });
     }
-    this.db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: true, timeout: 5000 });
-    this.db.exec("PRAGMA journal_mode = WAL");
-    this.db.exec("PRAGMA foreign_keys = ON");
-    this.db.exec("PRAGMA synchronous = NORMAL");
-    this.migrate();
+    this.db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: true, timeout: 5000, readOnly: this.isReadOnly });
+    if (!this.isReadOnly) {
+      this.db.exec("PRAGMA journal_mode = WAL");
+      this.db.exec("PRAGMA foreign_keys = ON");
+      this.db.exec("PRAGMA synchronous = NORMAL");
+      this.migrate();
+    }
 
     this.stmts = {
       getMeta: this.db.prepare("SELECT value FROM meta WHERE key = ?"),

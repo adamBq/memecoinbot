@@ -244,4 +244,51 @@ describe("Ledger (file)", () => {
     expect(third.getClosedPositions()[0]?.closeReason).toBe("manual");
     third.close();
   });
+
+  it("opens read-only: reads work, writes throw, nothing is created on disk", () => {
+    const path = join(dir, "ro.db");
+    const rw = new Ledger(path);
+    const pos = rw.openPosition(positionInput());
+    rw.setMeta("cash_usd", "920");
+    rw.addNote(T0, "hello");
+    rw.close();
+
+    const ro = new Ledger(path, { readOnly: true });
+    expect(ro.isReadOnly).toBe(true);
+    expect(ro.getMeta("schema_version")).toBe("1");
+    expect(ro.getMeta("cash_usd")).toBe("920");
+    expect(ro.getOpenPositions()).toEqual([pos]);
+    expect(ro.getPosition(pos.id)).toEqual(pos);
+    expect(ro.getClosedPositions()).toEqual([]);
+    expect(ro.getOrders()).toEqual([]);
+    expect(ro.getEquityCurve()).toEqual([]);
+    expect(ro.getDecisions(0)).toEqual([]);
+    expect(ro.getNotes()).toEqual([{ ts: T0, text: "hello" }]);
+    expect(ro.getLastExitTs(MINT)).toBeNull();
+
+    expect(() => ro.setMeta("cash_usd", "1")).toThrow(/readonly/i);
+    expect(() => ro.openPosition(positionInput())).toThrow(/readonly/i);
+    expect(() => ro.addNote(T0, "nope")).toThrow(/readonly/i);
+    expect(() => ro.snapshotEquity(T0, 1, 1, 0)).toThrow(/readonly/i);
+    ro.close();
+
+    // The read-only handle changed nothing.
+    const again = new Ledger(path, { readOnly: true });
+    expect(again.getMeta("cash_usd")).toBe("920");
+    expect(again.getNotes()).toHaveLength(1);
+    again.close();
+
+    // A missing file is not created by a read-only open.
+    const missing = join(dir, "does-not-exist", "x.db");
+    expect(() => new Ledger(missing, { readOnly: true })).toThrow();
+    expect(existsSync(missing)).toBe(false);
+  });
+
+  it("keeps the one-argument constructor read-write", () => {
+    const l = new Ledger(join(dir, "rw.db"));
+    expect(l.isReadOnly).toBe(false);
+    l.setMeta("k", "v");
+    expect(l.getMeta("k")).toBe("v");
+    l.close();
+  });
 });

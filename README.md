@@ -39,6 +39,17 @@ npm run report -- --save        # performance report, saved to reports/YYYY-MM-D
 Keep the Mac awake while it runs, for example `caffeinate -i -s` in another terminal, or
 set the Mac to never sleep on power.
 
+## Dashboard
+
+A read-only local dashboard shows equity, positions, every decision with its reasons, the latest
+screen's candidates, and the activity log. It never writes to the ledger and never trades.
+
+```bash
+npm run ui:build                # build the React app into ui/dist
+npm run ui                      # serve it at http://127.0.0.1:4777 (or let PM2 run memecoinbot-ui)
+npm run ui:dev                  # Vite dev server with /api proxied to 4777; add ?mock=1 for sample data
+```
+
 ## Layout
 
 - `src/core` types, config, http, logger, sanitiser
@@ -47,7 +58,9 @@ set the Mac to never sleep on power.
 - `src/strategy` entry, exit, and breaker rules
 - `src/execution` ledger (node:sqlite) and paper broker
 - `src/ops` runner loop, portfolio state, report builder
-- `src/cli` run, screen, status, report
+- `src/cli` run, screen, status, report, ui
+- `src/ui` dashboard API server and DTO builders
+- `ui` React dashboard (Vite), built to `ui/dist`
 
 ## Going live
 

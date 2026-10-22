@@ -16,6 +16,7 @@
     "screen": "tsx src/cli/screen.ts",
     "report": "tsx src/cli/report.ts",
     "status": "tsx src/cli/status.ts",
+    "deploy": "bash deploy/deploy.sh",
     "ui": "tsx src/cli/ui.ts",
     "ui:dev": "vite --config ui/vite.config.ts",
     "ui:build": "vite build --config ui/vite.config.ts",

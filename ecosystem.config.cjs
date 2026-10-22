@@ -30,13 +30,13 @@ module.exports = {
       merge_logs: true,
       time: true,
     },
-    {
-      // Keeps the Mac from idle-sleeping while the bot runs (display may still sleep).
+    // Keeps the Mac from idle-sleeping while the bot runs (display may still sleep). macOS only.
+    ...(process.platform === "darwin" ? [{
       name: "memecoinbot-keepawake",
       script: "/usr/bin/caffeinate",
       args: "-i -s",
       interpreter: "none",
       autorestart: true,
-    },
+    }] : []),
   ],
 };

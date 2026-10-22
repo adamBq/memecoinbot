@@ -62,6 +62,11 @@ npm run ui:dev                  # Vite dev server with /api proxied to 4777; add
 - `src/ui` dashboard API server and DTO builders
 - `ui` React dashboard (Vite), built to `ui/dist`
 
+## Deploying 24/7
+
+See `deploy/README.md` for the DigitalOcean plus Tailscale runbook: `deploy/bootstrap.sh` prepares the
+server once, `npm run deploy -- bot@<ip>` pushes code and restarts, and the dashboard stays private.
+
 ## Going live
 
 Not supported in this version. The security review's required controls are listed in

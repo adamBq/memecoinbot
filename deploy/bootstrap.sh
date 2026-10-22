@@ -57,14 +57,19 @@ printf '%s ALL=(ALL) NOPASSWD: /usr/bin/tailscale\n' "$BOT_USER" > /etc/sudoers.
 chmod 440 /etc/sudoers.d/90-bot-tailscale
 visudo -cf /etc/sudoers.d/90-bot-tailscale >/dev/null
 
-log "SSH hardening: keys only, no root login"
+log "SSH: keys only (no passwords); root stays reachable by key"
+# Deliberately NOT disabling root login. DigitalOcean's Droplet Console is an SSH session as root
+# using a key injected by the droplet-agent (docs: it "connects to Droplets using the network, like
+# other SSH-based clients"). PermitRootLogin=no would lock out the console, the recovery path.
+# "prohibit-password" is key-only root, which is what DigitalOcean's image already ships.
 sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
-sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin no/' /etc/ssh/sshd_config
+sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 sed -i 's/^#\?KbdInteractiveAuthentication .*/KbdInteractiveAuthentication no/' /etc/ssh/sshd_config
-# Ubuntu cloud images may ship an override that re-enables passwords.
 if ls /etc/ssh/sshd_config.d/*.conf >/dev/null 2>&1; then
   sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config.d/*.conf || true
+  sed -i 's/^PermitRootLogin no/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config.d/*.conf || true
 fi
+sshd -t
 systemctl restart ssh || systemctl restart sshd
 
 log "Tailscale"
@@ -74,6 +79,8 @@ fi
 systemctl enable --now tailscaled
 
 log "Firewall: SSH in, everything on the Tailscale interface, deny the rest"
+# Port 22 stays open to the world (key-only) because the Droplet Console needs it. Outbound stays
+# open: the droplet-agent needs 169.254.169.254 and the bot needs the public price APIs.
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow OpenSSH
@@ -87,10 +94,15 @@ sudo -u "$BOT_USER" -H bash -c 'pm2 install pm2-logrotate >/dev/null && pm2 set 
 # Start PM2 for the bot user at boot (systemd unit).
 env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$BOT_USER" --hp "/home/$BOT_USER" >/dev/null
 
+log "Sanity checks"
+systemctl is-active droplet-agent && echo "droplet-agent running (DigitalOcean console will work)"
+sshd -T 2>/dev/null | grep -Ei "^(permitrootlogin|passwordauthentication) " || true
+sudo -u "$BOT_USER" -H sudo -n tailscale version >/dev/null && echo "bot user can run tailscale via sudo"
+
 log "Done. Next steps:"
 cat <<MSG
   1. Join this box to your Tailscale network (prints a login link to open once):
-       sudo tailscale up --ssh=false      (as the bot user; root SSH is now disabled)
+       sudo tailscale up --ssh=false      (as the bot user, or as root)
   2. From your Mac, deploy the code and start the bot:
        bash deploy/deploy.sh bot@<droplet-public-ip> --with-ledger
   3. Publish the dashboard inside your tailnet only (HTTPS, no public port):

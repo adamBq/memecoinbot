@@ -22,14 +22,15 @@ ssh root@<droplet-ip> bash /root/bootstrap.sh
 ```
 
 This installs Node 24, PM2, Tailscale, locks the firewall to SSH plus Tailscale, disables
-password and root SSH login, creates the `bot` user, and sets Sydney time. Then join the
+password SSH login (root stays reachable by key so DigitalOcean's web console keeps working),
+creates the `bot` user with sudo for the Tailscale CLI only, and sets Sydney time. Then join the
 tailnet. It prints a link; open it once in your browser and approve the machine:
 
 ```bash
 ssh root@<droplet-ip> tailscale up --ssh=false
 ```
 
-After this step, log in as `bot@<droplet-ip>`; root login is disabled.
+Day to day, log in as `bot@<droplet-ip>`. Root by SSH key still works for repairs.
 
 ## 3. Move the paper week to the server
 
@@ -70,7 +71,7 @@ cd ~/memecoinbot && npm run report -- --save
 
 | Port | Public internet | Tailnet |
 |---|---|---|
-| 22 SSH | key only, root disabled, fail2ban | same |
+| 22 SSH | key only, no passwords, fail2ban | same |
 | 4777 dashboard | closed (not listening publicly, firewall denies) | HTTPS via `tailscale serve` |
 | anything else | denied by ufw | allowed on `tailscale0` only |
 

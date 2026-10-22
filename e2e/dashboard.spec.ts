@@ -65,7 +65,8 @@ async function journey(page: Page, opts: { query: string; prefix: string; base?:
   // Positions (screenshot only)
   await page.getByRole("link", { name: "Positions" }).click();
   await expect(page).toHaveURL(/#\/positions$/);
-  await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Positions", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Open positions/ })).toBeVisible();
   await shot("positions");
 
   // Auto-refresh toggle: constant label, aria-pressed carries state, visible Live/Paused text.

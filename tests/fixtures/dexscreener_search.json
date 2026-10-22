@@ -1,0 +1,415 @@
+{
+  "schemaVersion": "1.0.0",
+  "pairs": [
+    {
+      "chainId": "solana",
+      "dexId": "orca",
+      "url": "https://dexscreener.com/solana/5zpyutju9ee6jfymdgok7f6s5kczqtc9fomp3uekuya9",
+      "pairAddress": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
+      "labels": [
+        "wp"
+      ],
+      "baseToken": {
+        "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "name": "Bonk",
+        "symbol": "Bonk"
+      },
+      "quoteToken": {
+        "address": "So11111111111111111111111111111111111111112",
+        "name": "Wrapped SOL",
+        "symbol": "SOL"
+      },
+      "priceNative": "0.00000003001",
+      "priceUsd": "0.000003217",
+      "txns": {
+        "m5": {
+          "buys": 22,
+          "sells": 4
+        },
+        "h1": {
+          "buys": 170,
+          "sells": 194
+        },
+        "h6": {
+          "buys": 1175,
+          "sells": 2042
+        },
+        "h24": {
+          "buys": 4585,
+          "sells": 7753
+        }
+      },
+      "volume": {
+        "h24": 342211.21,
+        "h6": 66086.75,
+        "h1": 6518.56,
+        "m5": 898.66
+      },
+      "priceChange": {
+        "m5": 0.11,
+        "h1": -0.09,
+        "h6": 0.46,
+        "h24": 5.09
+      },
+      "liquidity": {
+        "usd": 326550.16,
+        "base": 72113046040,
+        "quote": 881.724
+      },
+      "fdv": 285922324,
+      "marketCap": 283128578,
+      "pairCreatedAt": 1671980424000,
+      "info": {
+        "imageUrl": "https://cdn.dexscreener.com/cms/images/ba03c0370670d176dc33bbd212eb023337a460ad7edfa053ca96ae22f31c3dcf?width=800&height=800&quality=95&format=auto",
+        "header": "https://cdn.dexscreener.com/cms/images/e2667fc59737e727f0fd18e7e534c67e371ee40689068e72d30b5bc12bf63c2d?width=1500&height=500&quality=95&format=auto",
+        "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263?timestamp=1792631400000",
+        "websites": [
+          {
+            "url": "https://www.bonkcoin.com",
+            "label": "Website"
+          }
+        ],
+        "socials": [
+          {
+            "url": "https://twitter.com/bonk_inu",
+            "type": "twitter"
+          },
+          {
+            "url": "https://t.me/Official_Bonk_Inu",
+            "type": "telegram"
+          },
+          {
+            "url": "https://discord.gg/qaQa6M6mN2",
+            "type": "discord"
+          }
+        ]
+      }
+    },
+    {
+      "chainId": "solana",
+      "dexId": "meteora",
+      "url": "https://dexscreener.com/solana/31p1hptjhfo6zd8obqkfutnxqkggpyi7yceafsykw777",
+      "pairAddress": "31p1hptjhFo6ZD8oBqkfutNXQKGGPyi7YcEAfsyKW777",
+      "labels": [
+        "DLMM"
+      ],
+      "baseToken": {
+        "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "name": "Bonk",
+        "symbol": "Bonk"
+      },
+      "quoteToken": {
+        "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "name": "USD Coin",
+        "symbol": "USDC"
+      },
+      "priceNative": "0.000003203",
+      "priceUsd": "0.000003203",
+      "txns": {
+        "m5": {
+          "buys": 0,
+          "sells": 0
+        },
+        "h1": {
+          "buys": 11,
+          "sells": 11
+        },
+        "h6": {
+          "buys": 230,
+          "sells": 301
+        },
+        "h24": {
+          "buys": 1127,
+          "sells": 1290
+        }
+      },
+      "volume": {
+        "h24": 303784.74,
+        "h6": 68959.46,
+        "h1": 5510.25,
+        "m5": 0
+      },
+      "priceChange": {
+        "h24": 4.06
+      },
+      "liquidity": {
+        "usd": 265870.51,
+        "base": 54773562712,
+        "quote": 90389
+      },
+      "fdv": 284693930,
+      "marketCap": 281912187,
+      "pairCreatedAt": 1752767469000,
+      "info": {
+        "imageUrl": "https://cdn.dexscreener.com/cms/images/ba03c0370670d176dc33bbd212eb023337a460ad7edfa053ca96ae22f31c3dcf?width=800&height=800&quality=95&format=auto",
+        "header": "https://cdn.dexscreener.com/cms/images/e2667fc59737e727f0fd18e7e534c67e371ee40689068e72d30b5bc12bf63c2d?width=1500&height=500&quality=95&format=auto",
+        "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263?timestamp=1792631400000",
+        "websites": [
+          {
+            "url": "https://www.bonkcoin.com",
+            "label": "Website"
+          }
+        ],
+        "socials": [
+          {
+            "url": "https://twitter.com/bonk_inu",
+            "type": "twitter"
+          },
+          {
+            "url": "https://t.me/Official_Bonk_Inu",
+            "type": "telegram"
+          },
+          {
+            "url": "https://discord.gg/qaQa6M6mN2",
+            "type": "discord"
+          }
+        ]
+      }
+    },
+    {
+      "chainId": "solana",
+      "dexId": "meteora",
+      "url": "https://dexscreener.com/solana/atcgozt6i1gr3wjajvwrwmt7qbhqzrbuqks2dcmakove",
+      "pairAddress": "AtcGozT6i1GR3wJAjVwRwmt7qbHqZrBUqKs2DcMAKoVe",
+      "labels": [
+        "DLMM"
+      ],
+      "baseToken": {
+        "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "name": "Bonk",
+        "symbol": "Bonk"
+      },
+      "quoteToken": {
+        "address": "So11111111111111111111111111111111111111112",
+        "name": "Wrapped SOL",
+        "symbol": "SOL"
+      },
+      "priceNative": "0.00000002697",
+      "priceUsd": "0.000002894",
+      "txns": {
+        "m5": {
+          "buys": 0,
+          "sells": 0
+        },
+        "h1": {
+          "buys": 0,
+          "sells": 3
+        },
+        "h6": {
+          "buys": 28,
+          "sells": 47
+        },
+        "h24": {
+          "buys": 80,
+          "sells": 80
+        }
+      },
+      "volume": {
+        "h24": 25435.7,
+        "h6": 8076.14,
+        "h1": 49.62,
+        "m5": 0
+      },
+      "priceChange": {
+        "h1": -9.69,
+        "h6": -10.49,
+        "h24": -6.43
+      },
+      "liquidity": {
+        "usd": 237815.81,
+        "base": 65914530891,
+        "quote": 438.0939
+      },
+      "fdv": 257238039,
+      "marketCap": 254724567,
+      "pairCreatedAt": 1706213679000,
+      "info": {
+        "imageUrl": "https://cdn.dexscreener.com/cms/images/ba03c0370670d176dc33bbd212eb023337a460ad7edfa053ca96ae22f31c3dcf?width=800&height=800&quality=95&format=auto",
+        "header": "https://cdn.dexscreener.com/cms/images/e2667fc59737e727f0fd18e7e534c67e371ee40689068e72d30b5bc12bf63c2d?width=1500&height=500&quality=95&format=auto",
+        "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263?timestamp=1792631400000",
+        "websites": [
+          {
+            "url": "https://www.bonkcoin.com",
+            "label": "Website"
+          }
+        ],
+        "socials": [
+          {
+            "url": "https://twitter.com/bonk_inu",
+            "type": "twitter"
+          },
+          {
+            "url": "https://t.me/Official_Bonk_Inu",
+            "type": "telegram"
+          },
+          {
+            "url": "https://discord.gg/qaQa6M6mN2",
+            "type": "discord"
+          }
+        ]
+      }
+    },
+    {
+      "chainId": "solana",
+      "dexId": "orca",
+      "url": "https://dexscreener.com/solana/56ekyu6ubptna3lr2qkjhjnbdnkclwk2lt3uwh7j2r8z",
+      "pairAddress": "56Ekyu6uBpTna3LR2qkjHjNbDNkCLWK2Lt3uWh7J2R8Z",
+      "labels": [
+        "wp"
+      ],
+      "baseToken": {
+        "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "name": "Bonk",
+        "symbol": "Bonk"
+      },
+      "quoteToken": {
+        "address": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+        "name": "dogwifhat",
+        "symbol": "$WIF"
+      },
+      "priceNative": "0.00001527",
+      "priceUsd": "0.000003206",
+      "txns": {
+        "m5": {
+          "buys": 0,
+          "sells": 3
+        },
+        "h1": {
+          "buys": 13,
+          "sells": 4
+        },
+        "h6": {
+          "buys": 80,
+          "sells": 32
+        },
+        "h24": {
+          "buys": 268,
+          "sells": 181
+        }
+      },
+      "volume": {
+        "h24": 546.19,
+        "h6": 177.22,
+        "h1": 10.51,
+        "m5": 2.84
+      },
+      "priceChange": {
+        "m5": -0.42,
+        "h1": -0.42,
+        "h6": -0.05,
+        "h24": 4.95
+      },
+      "liquidity": {
+        "usd": 2951.59,
+        "base": 495390799,
+        "quote": 6496.09859
+      },
+      "fdv": 284906790,
+      "marketCap": 282122967,
+      "pairCreatedAt": 1719168957000,
+      "info": {
+        "imageUrl": "https://cdn.dexscreener.com/cms/images/ba03c0370670d176dc33bbd212eb023337a460ad7edfa053ca96ae22f31c3dcf?width=800&height=800&quality=95&format=auto",
+        "header": "https://cdn.dexscreener.com/cms/images/e2667fc59737e727f0fd18e7e534c67e371ee40689068e72d30b5bc12bf63c2d?width=1500&height=500&quality=95&format=auto",
+        "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263?timestamp=1792631400000",
+        "websites": [
+          {
+            "url": "https://www.bonkcoin.com",
+            "label": "Website"
+          }
+        ],
+        "socials": [
+          {
+            "url": "https://twitter.com/bonk_inu",
+            "type": "twitter"
+          },
+          {
+            "url": "https://t.me/Official_Bonk_Inu",
+            "type": "telegram"
+          },
+          {
+            "url": "https://discord.gg/qaQa6M6mN2",
+            "type": "discord"
+          }
+        ]
+      }
+    },
+    {
+      "chainId": "base",
+      "dexId": "uniswap",
+      "url": "https://dexscreener.com/base/0x176567c44342edda7aae629f7cecab246f22f69a",
+      "pairAddress": "0x176567c44342EDda7AAE629f7CECaB246f22F69a",
+      "labels": [
+        "v2"
+      ],
+      "baseToken": {
+        "address": "0x72499bdDb67F4CA150E1f522Ca82c87bc9fB18c8",
+        "name": "Bonk",
+        "symbol": "BONK"
+      },
+      "quoteToken": {
+        "address": "0x4200000000000000000000000000000000000006",
+        "name": "Wrapped Ether",
+        "symbol": "WETH"
+      },
+      "priceNative": "0.0000000000003323",
+      "priceUsd": "0.0000000008238",
+      "txns": {
+        "m5": {
+          "buys": 0,
+          "sells": 0
+        },
+        "h1": {
+          "buys": 0,
+          "sells": 0
+        },
+        "h6": {
+          "buys": 2,
+          "sells": 3
+        },
+        "h24": {
+          "buys": 7,
+          "sells": 6
+        }
+      },
+      "volume": {
+        "h24": 94.45,
+        "h6": 11.33,
+        "h1": 0,
+        "m5": 0
+      },
+      "priceChange": {
+        "h6": -1.18,
+        "h24": 0.49
+      },
+      "liquidity": {
+        "usd": 44988.17,
+        "base": 27302683881161,
+        "quote": 9.07378
+      },
+      "fdv": 81903,
+      "marketCap": 82388,
+      "pairCreatedAt": 1712718115000,
+      "info": {
+        "imageUrl": "https://cdn.dexscreener.com/cms/images/9138906407b6370474a252ea3b9a24020e8b1ff9d8cd34d06e2bc80fdf62c034?width=800&height=800&quality=95&format=auto",
+        "header": "https://cdn.dexscreener.com/cms/images/37369818d75afcc92387a1f66118e11cab1ab110ac0d324238488e0eb2e8b19f?width=1500&height=500&quality=95&format=auto",
+        "openGraph": "https://cdn.dexscreener.com/token-images/og/base/0x72499bddb67f4ca150e1f522ca82c87bc9fb18c8?timestamp=1792631400000",
+        "websites": [
+          {
+            "url": "https://bonkonbase.vip/",
+            "label": "Website"
+          }
+        ],
+        "socials": [
+          {
+            "url": "https://twitter.com/Bonk_On_Base",
+            "type": "twitter"
+          },
+          {
+            "url": "https://t.me/Bonk_On_Base",
+            "type": "telegram"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "aerodrome-finance",
+  "symbol": "aero",
+  "name": "Aerodrome Finance",
+  "web_slug": "aerodrome-finance",
+  "asset_platform_id": "base",
+  "platforms": {
+    "base": "0x940181a94a35a4569e4529a3cdfb74e38fd98631"
+  },
+  "detail_platforms": {
+    "base": {
+      "decimal_place": 18,
+      "contract_address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+      "geckoterminal_url": "https://www.geckoterminal.com/base/tokens/0x940181a94a35a4569e4529a3cdfb74e38fd98631"
+    }
+  },
+  "categories": [
+    "Decentralized Exchange (DEX)",
+    "Exchange-based Tokens",
+    "Decentralized Finance (DeFi)",
+    "Automated Market Maker (AMM)",
+    "Base Ecosystem"
+  ],
+  "contract_address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+  "market_cap_rank": 88,
+  "last_updated": "2026-10-22T01:13:40.000Z"
+}

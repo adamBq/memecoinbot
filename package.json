@@ -1,0 +1,37 @@
+{
+  "name": "memecoinbot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "tsx src/cli/run.ts",
+    "screen": "tsx src/cli/screen.ts",
+    "report": "tsx src/cli/report.ts",
+    "status": "tsx src/cli/status.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "dotenv": "^17.2.3",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.1.2",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "eslint": "^9.38.0",
+    "pm2": "^6.0.14",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vitest": "^3.2.4"
+  }
+}

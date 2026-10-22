@@ -1,0 +1,119 @@
+{
+  "coins": [
+    {
+      "item": {
+        "id": "aerodrome-finance",
+        "coin_id": 31745,
+        "name": "Aerodrome Finance",
+        "symbol": "AERO",
+        "market_cap_rank": 88,
+        "slug": "aerodrome-finance",
+        "score": 0,
+        "data": {
+          "price": 0.824837694899088,
+          "market_cap": "$808,970,864",
+          "total_volume": "$54,983,821",
+          "price_change_percentage_24h": {
+            "usd": -5.555820980186021
+          }
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "pudgy-penguins",
+        "coin_id": 52622,
+        "name": "Pudgy Penguins",
+        "symbol": "PENGU",
+        "market_cap_rank": 113,
+        "slug": "pudgy-penguins",
+        "score": 1,
+        "data": {
+          "price": 0.008121048631173656,
+          "market_cap": "$510,492,334",
+          "total_volume": "$127,265,926",
+          "price_change_percentage_24h": {
+            "usd": 2.0114405078209883
+          }
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "near",
+        "coin_id": 10365,
+        "name": "NEAR Protocol",
+        "symbol": "NEAR",
+        "market_cap_rank": 19,
+        "slug": "near",
+        "score": 2,
+        "data": {
+          "price": 5.275604944126832,
+          "market_cap": "$6,908,869,951",
+          "total_volume": "$1,278,148,058",
+          "price_change_percentage_24h": {
+            "usd": 5.845513991051774
+          }
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "pearl-2",
+        "coin_id": 102173580,
+        "name": "Pearl",
+        "symbol": "PEARL",
+        "market_cap_rank": 85,
+        "slug": "pearl-research",
+        "score": 3,
+        "data": {
+          "price": 2.369807709468765,
+          "market_cap": "$837,351,822",
+          "total_volume": "$15,931,721",
+          "price_change_percentage_24h": {
+            "usd": 11.215432487084362
+          }
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "solana",
+        "coin_id": 4128,
+        "name": "Solana",
+        "symbol": "SOL",
+        "market_cap_rank": 7,
+        "slug": "solana",
+        "score": 4,
+        "data": {
+          "price": 107.05493523396254,
+          "market_cap": "$63,120,085,354",
+          "total_volume": "$2,585,519,243",
+          "price_change_percentage_24h": {
+            "usd": 0.644020046833585
+          }
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "axis-robotics",
+        "coin_id": 102178869,
+        "name": "Axis Robotics",
+        "symbol": "AXIS",
+        "market_cap_rank": 493,
+        "slug": "axis-robotics",
+        "score": 5,
+        "data": {
+          "price": 0.27445170496841326,
+          "market_cap": "$45,284,531",
+          "total_volume": "$96,854,611",
+          "price_change_percentage_24h": {
+            "usd": 0
+          }
+        }
+      }
+    }
+  ],
+  "_note": "trimmed from live /search/trending on 2026-10-22: coins 15->6; rwas/nfts/categories dropped"
+}

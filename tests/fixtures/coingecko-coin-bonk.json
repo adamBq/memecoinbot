@@ -1,0 +1,69 @@
+{
+  "id": "bonk",
+  "symbol": "bonk",
+  "name": "Bonk",
+  "web_slug": "bonk",
+  "asset_platform_id": "solana",
+  "platforms": {
+    "solana": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    "neon-evm": "0xd4b6520f7fb78e1ee75639f3376c581a71bcdb0e",
+    "ethereum": "0x1151cb3d861920e07a38e03eead12c32178567f6",
+    "unichain": "0xbbe97f3522101e5b6976cbf77376047097ba837f",
+    "polygon-pos": "0xe5b49820e5a1063f6f4ddf851327b5e8b2301048",
+    "binance-smart-chain": "0xa697e272a73744b343528c3bc4702f2565b2f422",
+    "arbitrum-one": "0x09199d9a5f4448d0848e4395d065e1ad9c4a1f74",
+    "aptos": "0x2a90fae71afc7460ee42b20ee49a9c9b29272905ad71fef92fbd8b3905a24b56"
+  },
+  "detail_platforms": {
+    "solana": {
+      "decimal_place": 5,
+      "contract_address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "geckoterminal_url": "https://www.geckoterminal.com/solana/tokens/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+    },
+    "neon-evm": {
+      "decimal_place": 5,
+      "contract_address": "0xd4b6520f7fb78e1ee75639f3376c581a71bcdb0e",
+      "geckoterminal_url": "https://www.geckoterminal.com/neon-evm/tokens/0xd4b6520f7fb78e1ee75639f3376c581a71bcdb0e"
+    },
+    "ethereum": {
+      "decimal_place": 5,
+      "contract_address": "0x1151cb3d861920e07a38e03eead12c32178567f6",
+      "geckoterminal_url": "https://www.geckoterminal.com/eth/tokens/0x1151cb3d861920e07a38e03eead12c32178567f6"
+    },
+    "unichain": {
+      "decimal_place": 5,
+      "contract_address": "0xbbe97f3522101e5b6976cbf77376047097ba837f",
+      "geckoterminal_url": "https://www.geckoterminal.com/unichain/tokens/0xbbe97f3522101e5b6976cbf77376047097ba837f"
+    },
+    "polygon-pos": {
+      "decimal_place": 5,
+      "contract_address": "0xe5b49820e5a1063f6f4ddf851327b5e8b2301048",
+      "geckoterminal_url": "https://www.geckoterminal.com/polygon_pos/tokens/0xe5b49820e5a1063f6f4ddf851327b5e8b2301048"
+    },
+    "binance-smart-chain": {
+      "decimal_place": 5,
+      "contract_address": "0xa697e272a73744b343528c3bc4702f2565b2f422",
+      "geckoterminal_url": "https://www.geckoterminal.com/bsc/tokens/0xa697e272a73744b343528c3bc4702f2565b2f422"
+    },
+    "arbitrum-one": {
+      "decimal_place": 5,
+      "contract_address": "0x09199d9a5f4448d0848e4395d065e1ad9c4a1f74",
+      "geckoterminal_url": "https://www.geckoterminal.com/arbitrum/tokens/0x09199d9a5f4448d0848e4395d065e1ad9c4a1f74"
+    },
+    "aptos": {
+      "decimal_place": 5,
+      "contract_address": "0x2a90fae71afc7460ee42b20ee49a9c9b29272905ad71fef92fbd8b3905a24b56",
+      "geckoterminal_url": "https://www.geckoterminal.com/aptos/tokens/0x2a90fae71afc7460ee42b20ee49a9c9b29272905ad71fef92fbd8b3905a24b56"
+    }
+  },
+  "categories": [
+    "BNB Chain Ecosystem",
+    "Solana Ecosystem",
+    "Polygon Ecosystem",
+    "Meme",
+    "Arbitrum Ecosystem"
+  ],
+  "contract_address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+  "market_cap_rank": 151,
+  "last_updated": "2026-10-22T01:10:49.000Z"
+}

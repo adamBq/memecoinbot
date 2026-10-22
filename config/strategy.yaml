@@ -1,0 +1,80 @@
+# Strategy parameters. Locked for the demo week starting 2026-10-22.
+# Do not edit mid-week without recording the change in the ledger notes.
+
+account:
+  startingEquityUsd: 1000
+  maxOpenPositions: 5
+  positionSizePctOfEquity: 8        # notional per new entry
+  minPositionNotionalUsd: 25
+
+hardFilters:
+  minLiquidityUsd: 50000
+  maxLiquidityUsd: 5000000          # above this it is no longer a memecoin opportunity
+  minTokenAgeHours: 2
+  maxTokenAgeDays: 90
+  minMarketCapUsd: 150000
+  maxMarketCapUsd: 50000000
+  minVolume24hUsd: 100000
+  minTxns1h: 50
+  maxTop10HolderPct: 35             # excluding known pool/AMM accounts
+  maxSingleHolderPct: 15
+  requireMintAuthorityRevoked: true
+  requireFreezeAuthorityRevoked: true
+  minLpLockedPct: 50                # for non pump.fun AMM pools
+  maxRoundTripLossPct: 6            # buy then sell $100 via Jupiter must keep >= 94%
+  maxTransferFeePct: 0
+  rejectRugcheckDangerRisks:
+    - "Freeze Authority still enabled"
+    - "Mint Authority still enabled"
+    - "Low amount of LP Providers"
+    - "Copycat token"
+    - "High holder correlation"
+  minRugcheckNormalisedScore: 0     # 0 disables; rugcheck normalised: lower is safer in their scheme, we use risks instead
+
+scoring:
+  weights:
+    technical: 0.30
+    fundamental: 0.20
+    quantitative: 0.20
+    sentiment: 0.15
+    event: 0.15
+  minCompositeToEnter: 0.62
+  minTechnicalToEnter: 0.55
+  requireBreakoutConfirmation: true # price above 1h high of prior 6h and vol 1h > 1.5x avg
+
+exits:
+  hardStopLossPct: 30
+  takeProfit1Multiple: 2.0          # sell tp1SellFraction at 2x entry
+  tp1SellFraction: 0.5
+  trailingStopPctFromPeak: 25       # after tp1, trail remaining
+  trailingStopPctFromPeakBeforeTp1: 40 # looser trail while waiting for tp1, protects big runs
+  timeStopHours: 48
+  timeStopMinGainPctToHold: 15      # if above this gain at 48h keep trailing instead of time exit
+  exitOnLiquidityDropPct: 40        # vs liquidity at entry
+  exitOnSafetyDeterioration: true
+
+circuitBreakers:
+  dailyLossLimitPct: 10             # halt new entries for the UTC day
+  maxDrawdownFromPeakPct: 25        # kill switch: close all, stop trading
+  maxConsecutiveLosses: 6           # pause new entries for cooldownHours
+  cooldownHours: 12
+  dataStaleSeconds: 300             # no entries if price data older than this
+  reentryCooldownHours: 24          # do not re-enter same mint within this window after exit
+
+execution:
+  paperFeePct: 0.3                  # DEX fee + Jupiter platform fee approx
+  paperExtraSlippagePct: 1.0        # pessimism on top of quoted price impact
+  priorityFeeUsd: 0.05
+  quoteNotionalUsd: 100             # notional used for sellability checks
+
+scheduler:
+  priceCheckSeconds: 60
+  screenIntervalSeconds: 300
+  equitySnapshotSeconds: 3600
+  maxCandidatesPerScreen: 40
+
+llm:
+  enabled: true
+  model: claude-haiku-5-5
+  maxCallsPerScreen: 10
+  cacheHours: 6

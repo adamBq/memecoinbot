@@ -1,0 +1,148 @@
+[
+  {
+    "chainId": "solana",
+    "dexId": "orca",
+    "url": "https://dexscreener.com/solana/5zpyutju9ee6jfymdgok7f6s5kczqtc9fomp3uekuya9",
+    "pairAddress": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
+    "labels": [
+      "wp"
+    ],
+    "baseToken": {
+      "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "name": "Bonk",
+      "symbol": "Bonk"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002999",
+    "priceUsd": "0.000003214",
+    "txns": {
+      "m5": {
+        "buys": 23,
+        "sells": 5
+      },
+      "h1": {
+        "buys": 171,
+        "sells": 195
+      },
+      "h6": {
+        "buys": 1176,
+        "sells": 2043
+      },
+      "h24": {
+        "buys": 4586,
+        "sells": 7754
+      }
+    },
+    "volume": {
+      "h24": 342268.49,
+      "h6": 66144.04,
+      "h1": 6575.84,
+      "m5": 955.94
+    },
+    "priceChange": {
+      "m5": 0.03,
+      "h1": -0.17,
+      "h6": 0.38,
+      "h24": 5.01
+    },
+    "liquidity": {
+      "usd": 326361.87,
+      "base": 72096019882,
+      "quote": 882.2351
+    },
+    "fdv": 285690239,
+    "marketCap": 282898760,
+    "pairCreatedAt": 1671980424000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/ba03c0370670d176dc33bbd212eb023337a460ad7edfa053ca96ae22f31c3dcf?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/e2667fc59737e727f0fd18e7e534c67e371ee40689068e72d30b5bc12bf63c2d?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263?timestamp=1792631400000",
+      "websites": [
+        {
+          "url": "https://www.bonkcoin.com",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://twitter.com/bonk_inu",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/Official_Bonk_Inu",
+          "type": "telegram"
+        },
+        {
+          "url": "https://discord.gg/qaQa6M6mN2",
+          "type": "discord"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pancakeswap",
+    "url": "https://dexscreener.com/solana/djntgubgeqiucwe8f981m2c3zghzt2xld8f2sqdz6rsz",
+    "pairAddress": "DJNtGuBGEQiUCWE8F981M2C3ZghZt2XLD8f2sQdZ6rsZ",
+    "baseToken": {
+      "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "name": "USD Coin",
+      "symbol": "USDC"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.009324",
+    "priceUsd": "0.9996",
+    "txns": {
+      "m5": {
+        "buys": 87,
+        "sells": 183
+      },
+      "h1": {
+        "buys": 1312,
+        "sells": 1580
+      },
+      "h6": {
+        "buys": 9260,
+        "sells": 10625
+      },
+      "h24": {
+        "buys": 43773,
+        "sells": 46214
+      }
+    },
+    "volume": {
+      "h24": 11849766.8,
+      "h6": 2322163.92,
+      "h1": 332415.57,
+      "m5": 26996.58
+    },
+    "priceChange": {
+      "m5": 0.04,
+      "h1": -0.1,
+      "h6": -0.17,
+      "h24": 0.04
+    },
+    "liquidity": {
+      "usd": 1782892.79,
+      "base": 678334,
+      "quote": 10306
+    },
+    "fdv": 7787337768,
+    "marketCap": 72067300883,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/913e72ef4901644569197a61dd198656ab488e9cd648a326fc2fca21b0d2521d?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/913e72ef4901644569197a61dd198656ab488e9cd648a326fc2fca21b0d2521d?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v?timestamp=1792631400000",
+      "websites": [],
+      "socials": []
+    }
+  }
+]

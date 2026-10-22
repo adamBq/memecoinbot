@@ -48,3 +48,8 @@ set the Mac to never sleep on power.
 - `src/execution` ledger (node:sqlite) and paper broker
 - `src/ops` runner loop, portfolio state, report builder
 - `src/cli` run, screen, status, report
+
+## Going live
+
+Not supported in this version. The security review's required controls are listed in
+`docs/BEFORE_LIVE.md`; every item must exist before a wallet key is ever loaded.

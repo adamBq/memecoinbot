@@ -72,6 +72,7 @@ scheduler:
   screenIntervalSeconds: 300
   equitySnapshotSeconds: 3600
   maxCandidatesPerScreen: 40
+  maxCandlesPerScreen: 8            # only the top N by 1h volume get candles (GeckoTerminal is heavily rate limited)
 
 llm:
   enabled: true

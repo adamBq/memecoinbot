@@ -73,6 +73,7 @@ const StrategySchema = z.object({
     screenIntervalSeconds: z.number(),
     equitySnapshotSeconds: z.number(),
     maxCandidatesPerScreen: z.number().int(),
+    maxCandlesPerScreen: z.number().int().min(1).max(40),
   }),
   llm: z.object({
     enabled: z.boolean(),

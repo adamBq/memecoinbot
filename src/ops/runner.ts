@@ -28,6 +28,7 @@ import { buildEventSignals, buildSentimentSignals } from "../analysis/signals.js
 import { evaluateBreakers, evaluateEntry, evaluateExits, pnlPct, updatePeak } from "../strategy/risk.js";
 import { META, adjustCash, ensureInitialised, loadPortfolio, utcDayKey } from "./portfolio.js";
 import { sanitizeUntrustedText } from "../core/sanitize.js";
+import { aggregateToHourly } from "../data/candles.js";
 
 /** Data dependencies are injected so the runner can be tested without the network. */
 export interface RunnerDeps {
@@ -523,9 +524,10 @@ export class Runner {
     logger.info({ prelim: prelim.length, shortlist: shortlist.length }, "screen: prefilter");
 
     const results: CompositeScore[] = [];
-    for (const pair of shortlist) {
+    for (const [idx, pair] of shortlist.entries()) {
       try {
         const ctx = await this.buildContext(pair, {
+          withCandles: idx < this.cfg.scheduler.maxCandlesPerScreen,
           cgRank: cgRank.get(pair.mint) ?? null,
           dexRank: boostRank.get(pair.mint) ?? null,
           enteredTrending: trendingNow.has(pair.mint) && !this.prevTrending.has(pair.mint) && this.prevTrending.size > 0,
@@ -665,14 +667,14 @@ export class Runner {
 
   private async buildContext(
     pair: PairSnapshot,
-    extra: { cgRank: number | null; dexRank: number | null; enteredTrending: boolean; description: string | null },
+    extra: { withCandles: boolean; cgRank: number | null; dexRank: number | null; enteredTrending: boolean; description: string | null },
   ): Promise<TokenContext> {
     const now = this.now();
-    // GeckoTerminal rate-limits bursts hard, so the two candle series go one after the other.
+    // One GeckoTerminal call per token: a 25h series of 5m candles, with the 1h series aggregated locally.
     const candles = (async () => {
-      const c5 = await withTimeout(this.deps.getOhlcv(pair.pairAddress, "minute", 5, 100), 40_000, [] as Candle[], "ohlcv 5m");
-      const c1 = await withTimeout(this.deps.getOhlcv(pair.pairAddress, "hour", 1, 48), 40_000, [] as Candle[], "ohlcv 1h");
-      return [c5, c1] as const;
+      if (!extra.withCandles) return [[] as Candle[], [] as Candle[]] as const;
+      const c5 = await withTimeout(this.deps.getOhlcv(pair.pairAddress, "minute", 5, 300), 60_000, [] as Candle[], "ohlcv 5m");
+      return [c5, aggregateToHourly(c5)] as const;
     })();
     const [safety, sellability, [candles5m, candles1h]] = await Promise.all([
       withTimeout(this.deps.getSafetyReport(pair.mint), 25_000, null, "rugcheck"),

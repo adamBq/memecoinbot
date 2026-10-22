@@ -9,7 +9,7 @@ import { getJson, limiterFor, TtlCache } from "../core/http.js";
 import type { Candle } from "../core/types.js";
 
 const BASE = "https://api.geckoterminal.com/api/v2/networks/solana";
-const limiter = limiterFor("api.geckoterminal.com", 3, 0.25);
+const limiter = limiterFor("api.geckoterminal.com", 2, 0.12);
 const ohlcvCache = new TtlCache();
 
 export type OhlcvTimeframe = "minute" | "hour" | "day";

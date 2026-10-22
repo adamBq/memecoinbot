@@ -20,6 +20,17 @@ apt-get upgrade -y
 apt-get install -y curl git ufw unattended-upgrades ca-certificates gnupg rsync fail2ban
 timedatectl set-timezone "$TZ_NAME"
 
+log "Swap (1 GB) so npm ci and the dashboard build never get killed on a 1 GB droplet"
+if ! swapon --show | grep -q /swapfile; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile >/dev/null
+  swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  sysctl -w vm.swappiness=10 >/dev/null
+  grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+fi
+
 log "Automatic security updates"
 dpkg-reconfigure -f noninteractive unattended-upgrades
 

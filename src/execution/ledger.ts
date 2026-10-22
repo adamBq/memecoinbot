@@ -35,6 +35,15 @@ export interface DecisionRow {
   reason: string;
 }
 
+export interface DecisionsPageQuery {
+  /** Only decisions with ts >= since. */
+  since: number;
+  /** Restrict to these actions; empty means all. */
+  actions: readonly string[];
+  limit: number;
+  offset: number;
+}
+
 export interface EquityPoint {
   ts: number;
   equityUsd: number;
@@ -210,6 +219,7 @@ const ORDER_COLUMNS =
 export class Ledger {
   private inTx = false;
   private readonly db: DatabaseSync;
+  private readonly decisionStmtCache = new Map<string, StatementSync>();
   private readonly stmts: {
     getMeta: StatementSync;
     setMeta: StatementSync;
@@ -218,11 +228,14 @@ export class Ledger {
     closePosition: StatementSync;
     getOpenPositions: StatementSync;
     getClosedPositions: StatementSync;
+    countClosedPositions: StatementSync;
     getPosition: StatementSync;
     insertOrder: StatementSync;
     getOrder: StatementSync;
     getOrders: StatementSync;
     getOrdersForPosition: StatementSync;
+    getLatestOrders: StatementSync;
+    getLatestOrdersForPosition: StatementSync;
     insertEquity: StatementSync;
     getEquityCurve: StatementSync;
     insertDecision: StatementSync;
@@ -282,6 +295,7 @@ export class Ledger {
         `SELECT ${POSITION_COLUMNS} FROM positions WHERE status = 'closed'
          ORDER BY closed_at DESC, id DESC LIMIT ?`,
       ),
+      countClosedPositions: this.db.prepare("SELECT COUNT(*) AS n FROM positions WHERE status = 'closed'"),
       getPosition: this.db.prepare(`SELECT ${POSITION_COLUMNS} FROM positions WHERE id = ?`),
       insertOrder: this.db.prepare(
         `INSERT INTO orders (position_id, side, mint, symbol, qty_tokens, effective_price_usd, reference_price_usd,
@@ -292,6 +306,10 @@ export class Ledger {
       getOrders: this.db.prepare(`SELECT ${ORDER_COLUMNS} FROM orders ORDER BY ts ASC, id ASC`),
       getOrdersForPosition: this.db.prepare(
         `SELECT ${ORDER_COLUMNS} FROM orders WHERE position_id = ? ORDER BY ts ASC, id ASC`,
+      ),
+      getLatestOrders: this.db.prepare(`SELECT ${ORDER_COLUMNS} FROM orders ORDER BY ts DESC, id DESC LIMIT ?`),
+      getLatestOrdersForPosition: this.db.prepare(
+        `SELECT ${ORDER_COLUMNS} FROM orders WHERE position_id = ? ORDER BY ts DESC, id DESC LIMIT ?`,
       ),
       insertEquity: this.db.prepare(
         "INSERT INTO equity_snapshots (ts, equity_usd, cash_usd, open_count) VALUES (?, ?, ?, ?)",
@@ -352,6 +370,28 @@ export class Ledger {
     if (this.inTx) return fn();
     this.inTx = true;
     this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const out = fn();
+      this.db.exec("COMMIT");
+      return out;
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    } finally {
+      this.inTx = false;
+    }
+  }
+
+  /**
+   * Run several reads against one consistent snapshot. In WAL mode a deferred
+   * BEGIN pins the snapshot at the first read, so a concurrent writer cannot
+   * interleave between the reads inside `fn`. Works on a read-only handle.
+   * Nested calls (or calls inside `transaction`) just run inline.
+   */
+  readTx<T>(fn: () => T): T {
+    if (this.inTx) return fn();
+    this.inTx = true;
+    this.db.exec("BEGIN");
     try {
       const out = fn();
       this.db.exec("COMMIT");
@@ -457,6 +497,11 @@ export class Ledger {
     return this.stmts.getClosedPositions.all(limit).map(rowToPosition);
   }
 
+  countClosedPositions(): number {
+    const row = this.stmts.countClosedPositions.get();
+    return row ? num(col(row, "n")) : 0;
+  }
+
   getPosition(id: number): Position | null {
     const row = this.stmts.getPosition.get(id);
     return row ? rowToPosition(row) : null;
@@ -489,6 +534,16 @@ export class Ledger {
     return rows.map(rowToOrder);
   }
 
+  /** Newest first, capped at `limit` in SQL. With no positionId, across every position. */
+  getLatestOrders(limit: number, positionId?: number): Order[] {
+    const n = Math.max(0, Math.floor(limit));
+    const rows =
+      positionId === undefined
+        ? this.stmts.getLatestOrders.all(n)
+        : this.stmts.getLatestOrdersForPosition.all(positionId, n);
+    return rows.map(rowToOrder);
+  }
+
   // ---- equity -------------------------------------------------------------
 
   snapshotEquity(ts: number, equityUsd: number, cashUsd: number, openCount: number): void {
@@ -513,6 +568,37 @@ export class Ledger {
   /** Decisions with ts >= sinceTs, newest first, capped at `limit`. */
   getDecisions(sinceTs: number, limit = 500): DecisionRow[] {
     return this.stmts.getDecisions.all(sinceTs, limit).map(rowToDecision);
+  }
+
+  /** Statement for a decisions query filtered to `actions` (cached per action count, bound positionally). */
+  private decisionsStmt(kind: "count" | "page", actionCount: number): StatementSync {
+    const key = `${kind}:${actionCount}`;
+    const cached = this.decisionStmtCache.get(key);
+    if (cached) return cached;
+    const where = actionCount > 0 ? `WHERE ts >= ? AND action IN (${Array(actionCount).fill("?").join(", ")})` : "WHERE ts >= ?";
+    const sql =
+      kind === "count"
+        ? `SELECT COUNT(*) AS n FROM decisions ${where}`
+        : `SELECT ts, mint, symbol, action, total, lenses_json, reason FROM decisions ${where}
+           ORDER BY ts DESC, id DESC LIMIT ? OFFSET ?`;
+    const stmt = this.db.prepare(sql);
+    this.decisionStmtCache.set(key, stmt);
+    return stmt;
+  }
+
+  /** Number of decisions with ts >= since, optionally restricted to `actions` (empty means all). */
+  countDecisions(since: number, actions: readonly string[] = []): number {
+    const row = this.decisionsStmt("count", actions.length).get(since, ...actions);
+    return row ? num(col(row, "n")) : 0;
+  }
+
+  /** One page of decisions, newest first, filtered and paged in SQL. */
+  getDecisionsPage(q: DecisionsPageQuery): DecisionRow[] {
+    const limit = Math.max(0, Math.floor(q.limit));
+    const offset = Math.max(0, Math.floor(q.offset));
+    return this.decisionsStmt("page", q.actions.length)
+      .all(q.since, ...q.actions, limit, offset)
+      .map(rowToDecision);
   }
 
   /** Latest exit for a mint: the later of its last closed position and last sell order. */

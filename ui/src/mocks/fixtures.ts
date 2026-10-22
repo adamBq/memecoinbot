@@ -2,7 +2,7 @@
  * Deterministic sample DTOs so the UI can be developed and screenshotted without
  * the server. Served when the page is opened with `?mock=1`.
  * `?mock=1&scenario=halted` or `&scenario=killed` exercises the breaker banner;
- * `&scenario=error` makes every endpoint fail.
+ * `&scenario=error` makes every endpoint fail; `&scenario=stale` marks prices stale and drops one live mark.
  */
 import type {
   CandidateDto, CandidatesResponse, ClosedPositionDto, DecisionDto, DecisionsResponse, EquityPointDto, EquityResponse,
@@ -96,8 +96,9 @@ const openPositions: OpenPositionDto[] = [
   { t: tokens[3]!, hoursAgo: 5.4, pnl: 23.8, peak: 41.2, price: 0.00001834 },
   { t: tokens[6]!, hoursAgo: 19.1, pnl: -12.4, peak: 8.9, price: 0.0042317 },
   { t: tokens[12]!, hoursAgo: 31.7, pnl: 118.5, peak: 152.0, price: 0.0318 },
-].map(({ t, hoursAgo, pnl, peak, price }) => {
+].map(({ t, hoursAgo, pnl, peak, price }, i) => {
   const openedAt = NOW - hoursAgo * HOUR;
+  const noMark = scenario() === "stale" && i === 1;
   const notional = 80;
   const base = basePosition(t, openedAt, price, notional);
   const tp1Hit = pnl > 100;
@@ -112,12 +113,13 @@ const openPositions: OpenPositionDto[] = [
     peakPriceUsd: price * (1 + peak / 100),
     tp1Hit,
     closeReason: null,
-    currentPriceUsd: current,
-    pnlPct: pnl,
-    unrealizedPnlUsd: round2(remaining * (current - price)),
-    peakPct: peak,
+    currentPriceUsd: noMark ? null : current,
+    pnlPct: noMark ? null : pnl,
+    unrealizedPnlUsd: noMark ? null : round2(remaining * (current - price)),
+    peakPct: noMark ? null : peak,
     ageHours: hoursAgo,
     remainingPct: tp1Hit ? 50 : 100,
+    priceAgeMs: noMark ? null : [12_000, 45_000, 150_000][i] ?? 30_000,
   };
 });
 
@@ -174,7 +176,7 @@ const orders: Order[] = (() => {
       });
     }
     if (p.status === "closed" && p.closedAt !== null) {
-      const notional = 80 * (1 + (p as ClosedPositionDto).pnlPct / 100);
+      const notional = 80 * (1 + ((p as ClosedPositionDto).pnlPct ?? 0) / 100);
       out.push({
         id: orderId++, positionId: p.id, side: "sell", mint: p.mint, symbol: p.symbol, qtyTokens: p.qtyTokens,
         effectivePriceUsd: notional / p.qtyTokens, referencePriceUsd: (notional / p.qtyTokens) * 1.01, notionalUsd: round2(notional),
@@ -331,7 +333,8 @@ function summary(): SummaryDto {
     cashUsd: round2(finalEquity - invested),
     returnPct: round2(((finalEquity - 1000) / 1000) * 100),
     peakEquityUsd: peakEquity,
-    drawdownFromPeakPct: round2(((finalEquity - peakEquity) / peakEquity) * 100),
+    // Positive magnitude, matching the server: 0.4 means 0.4% below the peak.
+    drawdownFromPeakPct: round2(((peakEquity - finalEquity) / peakEquity) * 100),
     dayStartEquityUsd: round2(finalEquity / 1.018),
     dayPnlPct: 1.8,
     openCount: openPositions.length,
@@ -351,6 +354,7 @@ function summary(): SummaryDto {
     lastTickAt: LAST_TICK_AT,
     lastScreenAt: LAST_SCREEN_AT,
     botHealthy: true,
+    pricesStale: sc === "stale",
   };
 }
 

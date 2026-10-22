@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ROUTES, hrefFor, type Route } from "../lib/router";
-import { useRefresh } from "../lib/api";
-import { fmtAgo } from "../lib/format";
+import { useLastUpdatedAt, useRefresh } from "../lib/api";
+import { Ago } from "./Ago";
 
 function Nav({ current }: { current: Route }) {
   return (
@@ -15,26 +15,40 @@ function Nav({ current }: { current: Route }) {
   );
 }
 
-/** "updated Xs ago", a pause toggle, and a manual refresh button. */
+/**
+ * Auto-refresh control. The ticking "updated Xs ago" text is aria-hidden; a separate
+ * hidden live region changes only on pause/resume and when data arrives.
+ */
 function RefreshControl() {
-  const { paused, setPaused, refreshNow, lastUpdatedAt, mock } = useRefresh();
-  const [now, setNow] = useState(() => Date.now());
+  const { paused, setPaused, refreshNow, mock } = useRefresh();
+  const lastUpdatedAt = useLastUpdatedAt();
+  const [announcement, setAnnouncement] = useState("");
+
   useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
-  }, []);
+    if (lastUpdatedAt !== null) setAnnouncement("Data updated");
+  }, [lastUpdatedAt]);
+
+  const toggle = () => {
+    const next = !paused;
+    setPaused(next);
+    setAnnouncement(next ? "Auto-refresh paused" : "Auto-refresh resumed");
+  };
+
   return (
     <div className="refresh">
       <span className="dot" data-paused={paused} aria-hidden="true" />
-      <span role="status" aria-live="polite">
-        {paused ? "Paused" : "Live"} · updated {fmtAgo(lastUpdatedAt, now)}
+      <span className="refresh-state">{paused ? "Paused" : "Live"}</span>
+      <span className="refresh-ago" aria-hidden="true">
+        {" · updated "}
+        <Ago ts={lastUpdatedAt} />
         {mock ? " · mock data" : ""}
       </span>
-      <button type="button" className="btn" aria-pressed={paused} onClick={() => setPaused(!paused)}>
-        {paused ? "Resume" : "Pause"}
+      <span className="visually-hidden" role="status" aria-live="polite">{announcement}</span>
+      <button type="button" className="btn" aria-pressed={!paused} onClick={toggle}>
+        Auto-refresh
       </button>
-      <button type="button" className="btn" onClick={refreshNow} aria-label="Refresh now">
-        Refresh
+      <button type="button" className="btn" onClick={refreshNow}>
+        Refresh now
       </button>
     </div>
   );

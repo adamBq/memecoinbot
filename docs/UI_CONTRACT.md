@@ -8,7 +8,12 @@ added in `src/execution/ledger.ts`: `readOnly` opens the DatabaseSync read-only 
 Live prices come from `getPairsByTokens` + `pickPrimaryPair` in `src/data/dexscreener.ts`, cached 30s.
 
 All endpoints are `GET`, return `application/json`, and never throw to the client: on failure
-respond `{ error: string }` with status 500. Unknown `/api/*` paths return 404 JSON.
+respond `{ error: "internal error" }` with status 500 (details go to the server log only). Unknown `/api/*` paths return 404 JSON.
+Every response carries `X-Content-Type-Options: nosniff`; `/api/*` responses carry `Cache-Control: no-store`.
+Requests whose `Host` header is not `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` (or the explicitly bound
+`UI_HOST`) are rejected with 403 JSON to defeat DNS rebinding. Built DTOs are cached for 1.5s per path+query.
+Live marks are cached 30s per mint, retried at most once per 30s on miss or failure, served from cache when an
+upstream fetch takes longer than 3s, and dropped once older than 10 minutes.
 Timestamps are epoch milliseconds. Money is USD numbers. Percentages are plain numbers (12.5 means 12.5%).
 
 ```ts
@@ -22,10 +27,14 @@ export interface SummaryDto {
   lastTickAt: number | null; lastScreenAt: number | null;
   /** true when lastTickAt is within 3 minutes of now */
   botHealthy: boolean;
+  /** true when any open position has no live mark or its mark is older than 2 minutes */
+  pricesStale: boolean;
 }
 export interface EquityPointDto { ts: number; equityUsd: number; cashUsd: number }
-export interface OpenPositionDto extends Position { currentPriceUsd: number | null; pnlPct: number | null; unrealizedPnlUsd: number | null; peakPct: number; ageHours: number; remainingPct: number }
-export interface ClosedPositionDto extends Position { pnlPct: number; holdHours: number }
+// priceAgeMs: age of currentPriceUsd in ms, null without a live mark. peakPct is null when the entry price is not positive.
+export interface OpenPositionDto extends Position { currentPriceUsd: number | null; priceAgeMs: number | null; pnlPct: number | null; unrealizedPnlUsd: number | null; peakPct: number | null; ageHours: number; remainingPct: number }
+// pnlPct is null when the cost basis is not positive.
+export interface ClosedPositionDto extends Position { pnlPct: number | null; holdHours: number }
 export interface DecisionDto { ts: number; mint: string; symbol: string; action: "filtered" | "skip" | "enter" | "exit"; total: number; lenses: Record<LensName, { score: number; reasons: string[] }> | null; reason: string }
 export interface CandidateDto extends DecisionDto { rank: number }
 export interface NoteDto { ts: number; text: string }

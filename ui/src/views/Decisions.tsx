@@ -1,10 +1,11 @@
 import { Fragment, useId, useMemo, useState } from "react";
-import { useApi } from "../lib/api";
+import { REFRESH_MS, useApi } from "../lib/api";
 import type { DecisionAction, DecisionsResponse } from "../types";
 import { fmtDateTime, fmtScore } from "../lib/format";
 import { ActionBadge, Symbol } from "../components/Badges";
 import { LensBars } from "../components/LensBars";
 import { Reason } from "../components/Reasons";
+import { TableWrap } from "../components/TableWrap";
 import { InlineError, StaleNote } from "../components/InlineError";
 
 const ACTIONS: readonly DecisionAction[] = ["filtered", "skip", "enter", "exit"];
@@ -16,6 +17,7 @@ export function Decisions() {
   const [offset, setOffset] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const searchId = useId();
+  const baseId = useId();
 
   const path = useMemo(() => {
     const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
@@ -23,12 +25,13 @@ export function Decisions() {
     return `/api/decisions?${params.toString()}`;
   }, [actions, offset]);
 
-  const { data, error, loading, stale, refreshing, refetch } = useApi<DecisionsResponse>(path);
+  // Only the first page polls; deeper pages would shift under the reader as new rows arrive.
+  const { data, error, loading, stale, refreshing, refetch } = useApi<DecisionsResponse>(path, offset > 0 ? 0 : REFRESH_MS);
 
   const rows = useMemo(() => {
-    const list = data?.decisions ?? [];
+    const list = (data?.decisions ?? []).map((d, i) => ({ d, i }));
     const q = query.trim().toLowerCase();
-    return q ? list.filter((d) => d.symbol.toLowerCase().includes(q) || d.mint.toLowerCase().includes(q)) : list;
+    return q ? list.filter(({ d }) => String(d.symbol ?? "").toLowerCase().includes(q) || String(d.mint ?? "").toLowerCase().includes(q)) : list;
   }, [data, query]);
 
   const toggleAction = (a: DecisionAction) => {
@@ -48,9 +51,9 @@ export function Decisions() {
 
   return (
     <div className="view">
-      <section className="card" aria-labelledby="dec-h">
+      <section className="card" aria-labelledby="dec-h" aria-busy={refreshing}>
         <div className="view-head">
-          <h2 id="dec-h">Decisions</h2>
+          <h3 id="dec-h">Scoring decisions</h3>
           <span className="subtle">{data ? `${pageStart}–${pageEnd} of ${total}` : ""}</span>
         </div>
         <div className="controls" style={{ marginBottom: 12 }}>
@@ -64,7 +67,7 @@ export function Decisions() {
               </button>
             ))}
           </div>
-          <label htmlFor={searchId} className="visually-hidden">Search by symbol</label>
+          <label htmlFor={searchId} className="visually-hidden">Search by symbol on this page</label>
           <input id={searchId} className="search" type="search" placeholder="Search symbol on this page" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
 
@@ -74,7 +77,7 @@ export function Decisions() {
         {data && rows.length === 0 ? <p className="empty">{query ? "No decisions on this page match the search." : "No decisions."}</p> : null}
 
         {rows.length > 0 ? (
-          <div className="table-wrap" style={{ opacity: refreshing ? 0.7 : 1 }}>
+          <TableWrap label="Decisions table">
             <table>
               <caption className="visually-hidden">Scoring decisions, newest first</caption>
               <thead>
@@ -88,23 +91,24 @@ export function Decisions() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((d) => {
-                  const key = `${d.ts}:${d.mint}`;
+                {rows.map(({ d, i }) => {
+                  const key = `${offset + i}:${d.ts}:${d.mint}`;
                   const expanded = open === key;
-                  const detailId = `dec-${d.ts}-${d.mint.slice(0, 8)}`;
+                  const detailId = `${baseId}-${offset + i}`;
+                  const symbol = typeof d.symbol === "string" && d.symbol ? d.symbol : "this token";
                   return (
                     <Fragment key={key}>
                       <tr className={expanded ? "expanded" : undefined}>
                         <td>
-                          <button type="button" className="btn" aria-expanded={expanded} aria-controls={detailId} onClick={() => setOpen(expanded ? null : key)} aria-label={`${expanded ? "Hide" : "Show"} lens scores for ${d.symbol}`}>
-                            {expanded ? "▾" : "▸"}
+                          <button type="button" className="btn" aria-expanded={expanded} aria-controls={detailId} aria-label={`Lens scores for ${symbol}`} onClick={() => setOpen(expanded ? null : key)}>
+                            <span aria-hidden="true">{expanded ? "▾" : "▸"}</span>
                           </button>
                         </td>
                         <td>{fmtDateTime(d.ts)}</td>
-                        <td><Symbol symbol={d.symbol} mint={d.mint} /></td>
-                        <td><ActionBadge action={d.action} /></td>
+                        <th scope="row"><Symbol symbol={d.symbol} mint={d.mint} /></th>
+                        <td><ActionBadge action={String(d.action)} /></td>
                         <td className="num">{d.lenses ? fmtScore(d.total) : <span className="muted">—</span>}</td>
-                        <td className="wrap"><Reason text={d.reason} /></td>
+                        <td className="wrap"><Reason text={String(d.reason ?? "")} /></td>
                       </tr>
                       {expanded ? (
                         <tr className="detail" id={detailId}>
@@ -118,7 +122,7 @@ export function Decisions() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         ) : null}
 
         <div className="pager" style={{ marginTop: 12 }}>

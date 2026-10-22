@@ -3,10 +3,11 @@ import { fmtDateTime } from "../lib/format";
 
 /** Circuit-breaker banner. Shown only when the kill switch fired or new entries are halted. */
 export function BreakerBanner({ summary }: { summary: SummaryDto }) {
-  const killed = summary.killed || summary.breakers.killSwitch;
-  const halted = summary.breakers.haltNewEntries;
+  const breakers = summary.breakers ?? { haltNewEntries: false, killSwitch: false, reasons: [] };
+  const killed = summary.killed === true || breakers.killSwitch === true;
+  const halted = breakers.haltNewEntries === true;
   if (!killed && !halted) return null;
-  const reasons = summary.breakers.reasons;
+  const reasons = Array.isArray(breakers.reasons) ? breakers.reasons : [];
   return (
     <div className={`banner${killed ? "" : " warn"}`} role="alert">
       <span className="icon" aria-hidden="true">{killed ? "⛔" : "⚠"}</span>
@@ -16,7 +17,7 @@ export function BreakerBanner({ summary }: { summary: SummaryDto }) {
         {reasons.length > 0 ? (
           <ul>
             {reasons.map((r, i) => (
-              <li key={i}>{r}</li>
+              <li key={`${i}:${r}`}>{String(r)}</li>
             ))}
           </ul>
         ) : null}

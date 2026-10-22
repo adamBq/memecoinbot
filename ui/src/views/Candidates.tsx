@@ -1,29 +1,32 @@
 import { useApi } from "../lib/api";
 import type { CandidatesResponse } from "../types";
-import { fmtAgo, fmtDateTime, fmtScore } from "../lib/format";
+import { fmtDateTime, fmtScore } from "../lib/format";
 import { ActionBadge, Symbol } from "../components/Badges";
+import { Ago } from "../components/Ago";
 import { LensBars } from "../components/LensBars";
 import { Reason } from "../components/Reasons";
+import { TableWrap } from "../components/TableWrap";
 import { InlineError, StaleNote } from "../components/InlineError";
 
 export function Candidates() {
   const { data, error, loading, stale, refreshing, refetch } = useApi<CandidatesResponse>("/api/candidates");
+  const candidates = data?.candidates ?? [];
 
   return (
     <div className="view">
-      <section className="card" aria-labelledby="cand-h">
+      <section className="card" aria-labelledby="cand-h" aria-busy={refreshing}>
         <div className="view-head">
-          <h2 id="cand-h">Latest screen</h2>
+          <h3 id="cand-h">Latest screen</h3>
           <span className="subtle">
-            {data?.screenedAt ? <>screened {fmtAgo(data.screenedAt)} ({fmtDateTime(data.screenedAt)})</> : data ? "no screen recorded yet" : ""}
+            {data?.screenedAt ? <>screened <Ago ts={data.screenedAt} /> ({fmtDateTime(data.screenedAt)})</> : data ? "no screen recorded yet" : ""}
           </span>
         </div>
         {error && !data ? <InlineError message={error} onRetry={refetch} /> : null}
         {stale && error ? <StaleNote message={error} /> : null}
         {loading ? <p className="empty">Loading…</p> : null}
-        {data && data.candidates.length === 0 ? <p className="empty">No candidates in the latest screen.</p> : null}
-        {data && data.candidates.length > 0 ? (
-          <div className="table-wrap" style={{ opacity: refreshing ? 0.7 : 1 }}>
+        {data && candidates.length === 0 ? <p className="empty">No candidates in the latest screen.</p> : null}
+        {candidates.length > 0 ? (
+          <TableWrap label="Candidates table">
             <table>
               <caption className="visually-hidden">Candidates ranked by composite score</caption>
               <thead>
@@ -37,24 +40,24 @@ export function Candidates() {
                 </tr>
               </thead>
               <tbody>
-                {data.candidates.map((c) => (
-                  <tr key={`${c.rank}:${c.mint}`}>
+                {candidates.map((c, i) => (
+                  <tr key={`${i}:${c.mint}`}>
                     <td className="num rank">{c.rank}</td>
                     <th scope="row"><Symbol symbol={c.symbol} mint={c.mint} /></th>
-                    <td><ActionBadge action={c.action} /></td>
+                    <td><ActionBadge action={String(c.action)} /></td>
                     <td className="num">{c.lenses ? fmtScore(c.total) : <span className="muted">—</span>}</td>
                     <td className="lens-mini">
                       {c.lenses ? <LensBars lenses={c.lenses} compact /> : <span className="muted">rejected by hard filter</span>}
                     </td>
                     <td className="wrap">
                       {c.action === "filtered" ? <strong className="delta-down">Filter failed: </strong> : null}
-                      <Reason text={c.reason} />
+                      <Reason text={String(c.reason ?? "")} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         ) : null}
       </section>
     </div>

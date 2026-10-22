@@ -1,25 +1,36 @@
 import { useApi } from "../lib/api";
-import type { PositionsResponse } from "../types";
-import { fmtDateTime, fmtHours, fmtPct, fmtTokenPrice, fmtUsd } from "../lib/format";
+import type { PositionsResponse, SummaryDto } from "../types";
+import { fmtDateTime, fmtHours, fmtPct, fmtScore, fmtTokenPrice, fmtUsd } from "../lib/format";
 import { Delta } from "../components/Delta";
 import { Symbol } from "../components/Badges";
+import { Ago } from "../components/Ago";
 import { Reason } from "../components/Reasons";
+import { TableWrap } from "../components/TableWrap";
 import { InlineError, StaleNote } from "../components/InlineError";
 
 export function Positions() {
-  const { data, error, loading, stale, refetch } = useApi<PositionsResponse>("/api/positions");
+  const { data, error, loading, stale, refreshing, refetch, updatedAt } = useApi<PositionsResponse>("/api/positions");
+  const summary = useApi<SummaryDto>("/api/summary");
+  const pricesStale = summary.data?.pricesStale === true;
+  const open = data?.open ?? [];
+  const closed = data?.closed ?? [];
 
   return (
     <div className="view">
       {error && !data ? <InlineError message={error} onRetry={refetch} /> : null}
       {stale && error ? <StaleNote message={error} /> : null}
+      {pricesStale ? (
+        <p className="stale-note" role="status">
+          <strong>Prices stale:</strong> at least one open position has no live mark or its mark is older than 2 minutes, so P&amp;L below may lag.
+        </p>
+      ) : null}
 
-      <section className="card" aria-labelledby="open-h">
-        <h2 id="open-h">Open positions {data ? <span className="subtle">({data.open.length})</span> : null}</h2>
+      <section className="card" aria-labelledby="open-h" aria-busy={refreshing}>
+        <h3 id="open-h">Open positions {data ? <span className="subtle">({open.length})</span> : null}</h3>
         {loading ? <p className="empty">Loading…</p> : null}
-        {data && data.open.length === 0 ? <p className="empty">No open positions.</p> : null}
-        {data && data.open.length > 0 ? (
-          <div className="table-wrap">
+        {data && open.length === 0 ? <p className="empty">No open positions.</p> : null}
+        {open.length > 0 ? (
+          <TableWrap label="Open positions table">
             <table>
               <caption className="visually-hidden">Open positions with live P&amp;L</caption>
               <thead>
@@ -39,34 +50,45 @@ export function Positions() {
                 </tr>
               </thead>
               <tbody>
-                {data.open.map((p) => (
-                  <tr key={p.id}>
+                {open.map((p, i) => (
+                  <tr key={`${p.id}:${i}`}>
                     <th scope="row"><Symbol symbol={p.symbol} mint={p.mint} /></th>
                     <td className="num"><Delta value={p.pnlPct} /></td>
                     <td className="num">{fmtUsd(p.unrealizedPnlUsd)}</td>
                     <td className="num"><Delta value={p.peakPct} /></td>
                     <td className="num">{fmtTokenPrice(p.entryPriceUsd)}</td>
-                    <td className="num">{p.currentPriceUsd === null ? <span className="muted">no price</span> : fmtTokenPrice(p.currentPriceUsd)}</td>
+                    <td className="num">
+                      {p.currentPriceUsd === null ? (
+                        <span className="muted">no price</span>
+                      ) : (
+                        <>
+                          {fmtTokenPrice(p.currentPriceUsd)}
+                          {typeof p.priceAgeMs === "number" && updatedAt !== null ? (
+                            <span className="muted price-age"> (<Ago ts={updatedAt - p.priceAgeMs} />)</span>
+                          ) : null}
+                        </>
+                      )}
+                    </td>
                     <td className="num">{fmtUsd(p.costBasisUsd)}</td>
                     <td className="num">{fmtPct(p.remainingPct, { sign: false })}</td>
                     <td className="num">{fmtHours(p.ageHours)}</td>
                     <td>{p.tp1Hit ? "hit" : "—"}</td>
-                    <td className="num">{p.entryScore.toFixed(2)}</td>
+                    <td className="num">{fmtScore(p.entryScore)}</td>
                     <td>{fmtDateTime(p.openedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         ) : null}
       </section>
 
-      <section className="card" aria-labelledby="closed-h">
-        <h2 id="closed-h">Closed positions {data ? <span className="subtle">({data.closed.length}, newest first)</span> : null}</h2>
+      <section className="card" aria-labelledby="closed-h" aria-busy={refreshing}>
+        <h3 id="closed-h">Closed positions {data ? <span className="subtle">({closed.length}, newest first)</span> : null}</h3>
         {loading ? <p className="empty">Loading…</p> : null}
-        {data && data.closed.length === 0 ? <p className="empty">No closed positions yet.</p> : null}
-        {data && data.closed.length > 0 ? (
-          <div className="table-wrap">
+        {data && closed.length === 0 ? <p className="empty">No closed positions yet.</p> : null}
+        {closed.length > 0 ? (
+          <TableWrap label="Closed positions table">
             <table>
               <caption className="visually-hidden">Closed positions with realized P&amp;L</caption>
               <thead>
@@ -83,22 +105,22 @@ export function Positions() {
                 </tr>
               </thead>
               <tbody>
-                {data.closed.map((p) => (
-                  <tr key={p.id}>
+                {closed.map((p, i) => (
+                  <tr key={`${p.id}:${i}`}>
                     <th scope="row"><Symbol symbol={p.symbol} mint={p.mint} /></th>
                     <td className="num"><Delta value={p.pnlPct} /></td>
                     <td className="num">{fmtUsd(p.realizedPnlUsd)}</td>
                     <td className="num">{fmtHours(p.holdHours)}</td>
-                    <td className="wrap">{p.closeReason ? <Reason text={p.closeReason} /> : <span className="muted">—</span>}</td>
+                    <td className="wrap">{p.closeReason ? <Reason text={String(p.closeReason)} /> : <span className="muted">—</span>}</td>
                     <td className="num">{fmtTokenPrice(p.entryPriceUsd)}</td>
                     <td className="num">{fmtUsd(p.costBasisUsd)}</td>
-                    <td className="num">{p.entryScore.toFixed(2)}</td>
+                    <td className="num">{fmtScore(p.entryScore)}</td>
                     <td>{fmtDateTime(p.closedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         ) : null}
       </section>
     </div>

@@ -60,10 +60,12 @@ export interface SummaryDto {
   lastTickAt: number | null; lastScreenAt: number | null;
   /** true when lastTickAt is within 3 minutes of now */
   botHealthy: boolean;
+  /** true when any open position lacks a live mark or its mark is older than 2 minutes */
+  pricesStale: boolean;
 }
 export interface EquityPointDto { ts: number; equityUsd: number; cashUsd: number }
-export interface OpenPositionDto extends Position { currentPriceUsd: number | null; pnlPct: number | null; unrealizedPnlUsd: number | null; peakPct: number; ageHours: number; remainingPct: number }
-export interface ClosedPositionDto extends Position { pnlPct: number; holdHours: number }
+export interface OpenPositionDto extends Position { currentPriceUsd: number | null; pnlPct: number | null; unrealizedPnlUsd: number | null; peakPct: number | null; ageHours: number; remainingPct: number; /** age of the live mark at response time, null when there is no mark */ priceAgeMs: number | null }
+export interface ClosedPositionDto extends Position { pnlPct: number | null; holdHours: number }
 export interface DecisionDto { ts: number; mint: string; symbol: string; action: "filtered" | "skip" | "enter" | "exit"; total: number; lenses: Record<LensName, { score: number; reasons: string[] }> | null; reason: string }
 export interface CandidateDto extends DecisionDto { rank: number }
 export interface NoteDto { ts: number; text: string }

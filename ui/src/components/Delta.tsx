@@ -14,3 +14,20 @@ export function Delta({ value, className = "" }: { value: number | null | undefi
     </span>
   );
 }
+
+/**
+ * Drawdown is a loss-style figure: any magnitude renders as "▼ -x%" in red, zero as a neutral
+ * "0.0%" with no arrow or colour. Accepts either sign convention (server gives a positive magnitude).
+ */
+export function DrawdownValue({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return <span className="delta-flat">—</span>;
+  const magnitude = Math.abs(value);
+  if (Math.round(magnitude * 10) === 0) return <span className="delta-flat">{fmtPct(0, { sign: false })}</span>;
+  return (
+    <span className="delta-down">
+      <span aria-hidden="true">{"▼"} </span>
+      <span className="visually-hidden">down </span>
+      {fmtPct(-magnitude)}
+    </span>
+  );
+}

@@ -191,6 +191,71 @@ describe("Ledger (in memory)", () => {
     expect(ledger.getLastExitTs("OtherMint")).toBeNull();
   });
 
+  it("counts closed positions in SQL", () => {
+    expect(ledger.countClosedPositions()).toBe(0);
+    const a = ledger.openPosition(positionInput());
+    const b = ledger.openPosition(positionInput({ mint: "Other" }));
+    ledger.openPosition(positionInput({ mint: "Third" }));
+    ledger.closePosition(a.id, T0 + 1, "x");
+    ledger.closePosition(b.id, T0 + 2, "y");
+    expect(ledger.countClosedPositions()).toBe(2);
+    expect(ledger.getOpenPositions()).toHaveLength(1);
+  });
+
+  it("returns the latest orders newest first with a SQL limit", () => {
+    const pos = ledger.openPosition(positionInput());
+    const other = ledger.openPosition(positionInput({ mint: "Other" }));
+    ledger.recordOrder(orderInput(pos.id, { ts: T0 + 1 }));
+    ledger.recordOrder(orderInput(other.id, { ts: T0 + 3, mint: "Other" }));
+    ledger.recordOrder(orderInput(pos.id, { ts: T0 + 2, side: "sell" }));
+    expect(ledger.getLatestOrders(10).map((o) => o.ts)).toEqual([T0 + 3, T0 + 2, T0 + 1]);
+    expect(ledger.getLatestOrders(2).map((o) => o.ts)).toEqual([T0 + 3, T0 + 2]);
+    expect(ledger.getLatestOrders(10, pos.id).map((o) => o.ts)).toEqual([T0 + 2, T0 + 1]);
+    expect(ledger.getLatestOrders(1, pos.id).map((o) => o.ts)).toEqual([T0 + 2]);
+    expect(ledger.getLatestOrders(0)).toEqual([]);
+    // the ascending reader is unchanged
+    expect(ledger.getOrders().map((o) => o.ts)).toEqual([T0 + 1, T0 + 2, T0 + 3]);
+  });
+
+  it("counts and pages decisions with the filter in SQL", () => {
+    const actions = ["skip", "enter", "filtered", "exit", "skip", "skip"] as const;
+    actions.forEach((action, i) => {
+      ledger.recordDecision({ ts: T0 + i * 1000, mint: MINT, symbol: "BONK", action, total: i / 10, lensesJson: "{}", reason: `r${i}` });
+    });
+    expect(ledger.countDecisions(0)).toBe(6);
+    expect(ledger.countDecisions(0, [])).toBe(6);
+    expect(ledger.countDecisions(0, ["skip"])).toBe(3);
+    expect(ledger.countDecisions(0, ["skip", "enter"])).toBe(4);
+    expect(ledger.countDecisions(T0 + 4000, ["skip"])).toBe(2);
+    expect(ledger.countDecisions(T0 + 10_000)).toBe(0);
+
+    const all = ledger.getDecisionsPage({ since: 0, actions: [], limit: 100, offset: 0 });
+    expect(all.map((d) => d.reason)).toEqual(["r5", "r4", "r3", "r2", "r1", "r0"]);
+    const skips = ledger.getDecisionsPage({ since: 0, actions: ["skip"], limit: 2, offset: 1 });
+    expect(skips.map((d) => d.reason)).toEqual(["r4", "r0"]);
+    expect(skips[0]).toEqual({ ts: T0 + 4000, mint: MINT, symbol: "BONK", action: "skip", total: 0.4, lensesJson: "{}", reason: "r4" });
+    const two = ledger.getDecisionsPage({ since: T0 + 1000, actions: ["enter", "exit"], limit: 10, offset: 0 });
+    expect(two.map((d) => d.reason)).toEqual(["r3", "r1"]);
+    expect(ledger.getDecisionsPage({ since: 0, actions: [], limit: 10, offset: 6 })).toEqual([]);
+    expect(ledger.getDecisionsPage({ since: 0, actions: [], limit: 0, offset: 0 })).toEqual([]);
+    // the statement cache keyed by action count binds the right values on reuse
+    expect(ledger.countDecisions(0, ["exit"])).toBe(1);
+    expect(ledger.countDecisions(0, ["enter"])).toBe(1);
+  });
+
+  it("readTx runs reads in one transaction and nests inside transaction()", () => {
+    ledger.setMeta("k", "v");
+    const out = ledger.readTx(() => {
+      expect(ledger.getMeta("k")).toBe("v");
+      return ledger.readTx(() => 42);
+    });
+    expect(out).toBe(42);
+    expect(() => ledger.readTx(() => { throw new Error("boom"); })).toThrow("boom");
+    // the connection is usable after a rolled back read transaction
+    expect(ledger.getMeta("k")).toBe("v");
+    expect(ledger.transaction(() => ledger.readTx(() => ledger.getMeta("k")))).toBe("v");
+  });
+
   it("stores and overwrites meta values", () => {
     expect(ledger.getMeta("cash_usd")).toBeNull();
     ledger.setMeta("cash_usd", "1000");
@@ -265,6 +330,12 @@ describe("Ledger (file)", () => {
     expect(ro.getDecisions(0)).toEqual([]);
     expect(ro.getNotes()).toEqual([{ ts: T0, text: "hello" }]);
     expect(ro.getLastExitTs(MINT)).toBeNull();
+
+    expect(ro.countClosedPositions()).toBe(0);
+    expect(ro.countDecisions(0, ["skip"])).toBe(0);
+    expect(ro.getDecisionsPage({ since: 0, actions: ["skip"], limit: 10, offset: 0 })).toEqual([]);
+    expect(ro.getLatestOrders(5)).toEqual([]);
+    expect(ro.readTx(() => [ro.getMeta("cash_usd"), ro.getOpenPositions().length])).toEqual(["920", 1]);
 
     expect(() => ro.setMeta("cash_usd", "1")).toThrow(/readonly/i);
     expect(() => ro.openPosition(positionInput())).toThrow(/readonly/i);

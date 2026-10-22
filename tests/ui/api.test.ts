@@ -15,6 +15,10 @@ import {
   buildReportDto,
   buildSummary,
   parseLenses,
+  priceBook,
+  toPriceMap,
+  PRICE_STALE_MS,
+  DECISIONS_MAX_OFFSET,
 } from "../../src/ui/api.js";
 import { MINTS, NOW, SEED, VALID_LENSES, VALID_LENSES_JSON, seedLedger } from "./seed.js";
 
@@ -38,7 +42,7 @@ describe("ui api builders", () => {
 
   describe("buildSummary", () => {
     it("marks open positions with live prices and derives the KPI fields", () => {
-      const s = buildSummary(ledger, cfg, SEED.prices, NOW);
+      const s = buildSummary(ledger, cfg, priceBook(SEED.prices, NOW), NOW);
       // A: 80_000 * 0.002 = 160, B: 80_000 * 0.0009 = 72, cash 820 -> 1052
       expect(s.equityUsd).toBeCloseTo(1052, 6);
       expect(s.cashUsd).toBe(SEED.cash);
@@ -62,6 +66,18 @@ describe("ui api builders", () => {
       expect(s.lastTickAt).toBe(SEED.lastTickAt);
       expect(s.lastScreenAt).toBe(SEED.lastScreenAt);
       expect(s.botHealthy).toBe(true);
+      expect(s.pricesStale).toBe(false);
+    });
+
+    it("flags stale prices when a mark is missing or older than 2 minutes", () => {
+      expect(buildSummary(ledger, cfg, priceBook({ [MINTS.openA]: 0.002 }, NOW), NOW).pricesStale).toBe(true);
+      const old = { [MINTS.openA]: { price: 0.002, at: NOW - PRICE_STALE_MS - 1 }, [MINTS.openB]: { price: 0.0009, at: NOW } };
+      expect(buildSummary(ledger, cfg, old, NOW).pricesStale).toBe(true);
+      const fresh = { [MINTS.openA]: { price: 0.002, at: NOW - PRICE_STALE_MS }, [MINTS.openB]: { price: 0.0009, at: NOW - 5 } };
+      expect(buildSummary(ledger, cfg, fresh, NOW).pricesStale).toBe(false);
+      expect(buildSummary(ledger, cfg, {}, NOW).pricesStale).toBe(true);
+      // still marks equity with the old quote: staleness is a flag, not a drop
+      expect(buildSummary(ledger, cfg, old, NOW).equityUsd).toBeCloseTo(1052, 6);
     });
 
     it("falls back to entry prices when no live mark exists and flags a stale bot", () => {
@@ -79,7 +95,7 @@ describe("ui api builders", () => {
       ledger.setMeta("consecutive_losses", "3");
       const before = ledger.getMeta("peak_equity_usd");
       // Push equity above the stored peak: a read-only load must not ratchet the meta value.
-      const s = buildSummary(ledger, cfg, { [MINTS.openA]: 0.01 }, NOW);
+      const s = buildSummary(ledger, cfg, priceBook({ [MINTS.openA]: 0.01 }, NOW), NOW);
       expect(ledger.getMeta("peak_equity_usd")).toBe(before);
       expect(s.killed).toBe(true);
       expect(s.haltedUntil).toBe(NOW + H);
@@ -106,7 +122,7 @@ describe("ui api builders", () => {
 
   describe("buildEquity", () => {
     it("returns the stored curve ascending plus a synthetic live point", () => {
-      const { points } = buildEquity(ledger, SEED.prices, NOW);
+      const { points } = buildEquity(ledger, priceBook(SEED.prices, NOW), NOW);
       expect(points.map((p) => p.ts)).toEqual([NOW - 4 * H, NOW - 3 * H, NOW - 2 * H, NOW]);
       expect(points[0]).toEqual({ ts: NOW - 4 * H, equityUsd: 1030, cashUsd: 820 });
       const last = points[points.length - 1]!;
@@ -117,7 +133,7 @@ describe("ui api builders", () => {
 
   describe("buildPositions", () => {
     it("decorates open positions with live P&L and lists closed newest first", () => {
-      const { open, closed } = buildPositions(ledger, SEED.prices, NOW);
+      const { open, closed } = buildPositions(ledger, priceBook(SEED.prices, NOW), NOW);
       // oldest open first: BBB (20h) then AAA (5h)
       expect(open.map((p) => p.id)).toEqual([openIds[1], openIds[0]]);
 
@@ -127,6 +143,7 @@ describe("ui api builders", () => {
       expect(a.pnlPct).toBeCloseTo(100, 6);
       expect(a.unrealizedPnlUsd).toBeCloseTo(80, 6); // 80_000 * 0.002 - 80
       expect(a.peakPct).toBeCloseTo(150, 6);
+      expect(a.priceAgeMs).toBe(0);
       expect(a.ageHours).toBeCloseTo(5, 6);
       expect(a.remainingPct).toBe(100);
 
@@ -152,10 +169,45 @@ describe("ui api builders", () => {
       const { open } = buildPositions(ledger, {}, NOW);
       expect(open[1]!.symbol).toBe("AAA");
       expect(open[1]!.currentPriceUsd).toBeNull();
+      expect(open[1]!.priceAgeMs).toBeNull();
       expect(open[1]!.pnlPct).toBeNull();
       expect(open[1]!.unrealizedPnlUsd).toBeNull();
       expect(open[1]!.peakPct).toBeCloseTo(150, 6);
       expect(open[0]!.peakPct).toBeCloseTo(120, 6);
+    });
+  });
+
+  describe("buildPositions guards", () => {
+    it("reports price age and nulls non-finite ratios", () => {
+      const aged = { [MINTS.openA]: { price: 0.002, at: NOW - 45_000 } };
+      const { open } = buildPositions(ledger, aged, NOW);
+      expect(open[1]!.priceAgeMs).toBe(45_000);
+      expect(open[0]!.priceAgeMs).toBeNull();
+      // a non-positive quote is not a live mark
+      const zero = buildPositions(ledger, { [MINTS.openA]: { price: 0, at: NOW } }, NOW);
+      expect(zero.open[1]!.currentPriceUsd).toBeNull();
+      expect(zero.open[1]!.pnlPct).toBeNull();
+
+      // zero entry price / cost basis cannot produce Infinity or NaN
+      const [a] = ledger.getOpenPositions();
+      ledger.updatePosition({ ...a!, entryPriceUsd: 0, qtyTokens: 0, remainingQtyTokens: 0 });
+      const [c] = ledger.getClosedPositions(1);
+      ledger.updatePosition({ ...c!, costBasisUsd: 0 });
+      const dto = buildPositions(ledger, priceBook(SEED.prices, NOW), NOW);
+      const broken = dto.open.find((p) => p.id === a!.id)!;
+      expect(broken.peakPct).toBeNull();
+      expect(broken.pnlPct).toBe(0); // risk.pnlPct guards a zero entry itself
+      expect(broken.remainingPct).toBe(0);
+      expect(dto.closed.find((p) => p.id === c!.id)!.pnlPct).toBeNull();
+      expect(JSON.stringify(dto)).not.toMatch(/Infinity|NaN/);
+    });
+  });
+
+  describe("price book helpers", () => {
+    it("round-trips a price map", () => {
+      const book = priceBook({ a: 1, b: 2 }, 123);
+      expect(book).toEqual({ a: { price: 1, at: 123 }, b: { price: 2, at: 123 } });
+      expect(toPriceMap(book)).toEqual({ a: 1, b: 2 });
     });
   });
 
@@ -171,6 +223,7 @@ describe("ui api builders", () => {
       const two = buildOrders(ledger, 2).orders;
       expect(two.map((o) => o.ts)).toEqual([NOW - 5 * H, NOW - 6 * H]);
       expect(buildOrders(ledger, 0).orders).toHaveLength(9); // invalid limit -> default
+      expect(buildOrders(ledger, 1e9).orders).toHaveLength(9); // capped, not an error
     });
   });
 
@@ -240,6 +293,12 @@ describe("ui api builders", () => {
       expect(buildDecisions(ledger, { action: ["bogus", "skip"] }).total).toBe(2);
     });
 
+    it("clamps the offset to 0..100000", () => {
+      expect(buildDecisions(ledger, { offset: -3 }).decisions).toHaveLength(8);
+      expect(buildDecisions(ledger, { offset: DECISIONS_MAX_OFFSET + 5 }).decisions).toEqual([]);
+      expect(buildDecisions(ledger, { offset: DECISIONS_MAX_OFFSET + 5 }).total).toBe(8);
+    });
+
     it("clamps the limit to 1..500", () => {
       expect(buildDecisions(ledger, { limit: 0 }).decisions).toHaveLength(1);
       expect(buildDecisions(ledger, { limit: -5 }).decisions).toHaveLength(1);
@@ -282,7 +341,7 @@ describe("ui api builders", () => {
 
   describe("buildReportDto", () => {
     it("delegates to buildReport with live equity", () => {
-      const r = buildReportDto(ledger, cfg, SEED.prices, NOW);
+      const r = buildReportDto(ledger, cfg, priceBook(SEED.prices, NOW), NOW);
       expect(r.generatedAt).toBe(NOW);
       expect(r.startingEquityUsd).toBe(1000);
       expect(r.equityUsd).toBeCloseTo(1052, 6);

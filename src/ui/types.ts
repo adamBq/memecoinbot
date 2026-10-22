@@ -36,6 +36,8 @@ export interface SummaryDto {
   lastScreenAt: number | null;
   /** true when lastTickAt is within 3 minutes of now */
   botHealthy: boolean;
+  /** true when any open position has no live mark or its mark is older than 2 minutes */
+  pricesStale: boolean;
 }
 
 export interface EquityPointDto {
@@ -46,15 +48,19 @@ export interface EquityPointDto {
 
 export interface OpenPositionDto extends Position {
   currentPriceUsd: number | null;
+  /** Age of currentPriceUsd in ms, null when there is no live mark. */
+  priceAgeMs: number | null;
   pnlPct: number | null;
   unrealizedPnlUsd: number | null;
-  peakPct: number;
+  /** null when the entry price is not positive. */
+  peakPct: number | null;
   ageHours: number;
   remainingPct: number;
 }
 
 export interface ClosedPositionDto extends Position {
-  pnlPct: number;
+  /** null when the cost basis is not positive. */
+  pnlPct: number | null;
   holdHours: number;
 }
 

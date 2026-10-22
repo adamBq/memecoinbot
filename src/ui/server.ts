@@ -502,7 +502,11 @@ export async function main(): Promise<Server> {
     getPrices: fetchDexscreenerPrices,
     staticDir,
     configPath,
-    allowedHosts: loopback ? [] : [host.includes(":") && !host.startsWith("[") ? `[${host}]` : host],
+    // Extra names the dashboard may be addressed by (e.g. the Tailscale MagicDNS name), comma separated.
+    allowedHosts: [
+      ...(loopback ? [] : [host.includes(":") && !host.startsWith("[") ? `[${host}]` : host]),
+      ...(process.env.UI_ALLOWED_HOSTS ?? "").split(",").map((h) => h.trim()).filter(Boolean),
+    ],
     display: { currency: env.displayCurrency, timezone: env.displayTimezone },
   });
 
